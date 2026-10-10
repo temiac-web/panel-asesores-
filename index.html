@@ -421,7 +421,7 @@ function vPersonas(){
   var us=(S.data.usuarios||[]).slice().sort(function(a,b){return (a.nombre||'').localeCompare(b.nombre||'');});
   var marcaChecks=function(pref){return Object.keys(BRANDS).map(function(b){return '<label style="display:flex;gap:6px;align-items:center;font-weight:500"><input type="checkbox" style="width:18px;min-height:18px" id="'+pref+b+'"> '+BRANDS[b].n+'</label>';}).join('');};
   var list=us.map(function(u){
-    return '<div class="item" style="border-left-color:'+(u.activo?'var(--vio)':'var(--mu)')+'"><div class="hd"><b>'+esc(u.nombre)+'</b><span class="mu">'+esc(u.email)+'</span><span class="rt"><span class="pill p-v">'+esc(ROLES[u.rol]||u.rol)+'</span><span class="pill '+(u.activo?'p-o':'p-n')+'">'+(u.activo?'Activo':'Inactivo')+'</span></span></div>'+
+    return '<div class="item" style="border-left-color:'+(u.activo?'var(--vio)':'var(--mu)')+'"><div class="hd"><b>'+esc(u.nombre)+'</b><span class="mu">'+esc(u.email)+'</span><span class="rt"><select style="width:auto;min-height:34px" onchange="A.setRol(\''+u.id+'\',this.value)">'+Object.keys(ROLES).map(function(r){return '<option value="'+r+'"'+(u.rol===r?' selected':'')+'>'+ROLES[r]+'</option>';}).join('')+'</select><span class="pill '+(u.activo?'p-o':'p-n')+'">'+(u.activo?'Activo':'Inactivo')+'</span></span></div>'+
     '<div class="fl" style="align-items:center">'+Object.keys(BRANDS).map(function(b){var on=(u.marcas||[]).indexOf(b)>=0;return '<button class="cp'+(on?' on':'')+'" onclick="A.toggleMarca(\''+u.id+'\',\''+b+'\')">'+BRANDS[b].n+'</button>';}).join('')+
     '<button class="bt sm" onclick="A.toggleActivo(\''+u.id+'\','+(!u.activo)+')">'+(u.activo?'Desactivar':'Activar')+'</button></div></div>';}).join('')||'<div class="mu">Todavía no hay personas.</div>';
   return '<div><h1>Personas</h1><div class="mu" style="padding-top:4px">Crea accesos y decide en qué marcas trabaja cada quien. Puedes cambiarlo cuando quieras.</div></div>'+
@@ -533,6 +533,7 @@ A.crear=function(){
   }).catch(function(e){S.msg={c:'e',t:errMsg(e)};render();});
 };
 A.toggleMarca=function(uid,b){var u=(S.data.usuarios||[]).filter(function(x){return x.id===uid;})[0];if(!u)return;var m=(u.marcas||[]).slice(),i=m.indexOf(b);if(i>=0)m.splice(i,1);else m.push(b);db.doc('usuarios/'+uid).update({marcas:m}).catch(function(e){S.msg={c:'e',t:errMsg(e)};render();});};
+A.setRol=function(uid,r){db.doc('usuarios/'+uid).update({rol:r}).catch(function(e){S.msg={c:'e',t:errMsg(e)};render();});};
 A.toggleActivo=function(uid,v){db.doc('usuarios/'+uid).update({activo:v}).catch(function(e){S.msg={c:'e',t:errMsg(e)};render();});};
 })();
 </script>
