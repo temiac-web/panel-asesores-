@@ -1,0 +1,540 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Panel de Asesores</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0B0A14;--s1:#13121E;--s2:#1A1830;--s3:#26224A;--line:#2A2650;--tx:#F2F1FA;--mu:#8C88A8;
+--vio:#8B6CF0;--vio2:#B7A4FF;--grad:linear-gradient(135deg,#7C5CF0,#4F7BF0);--amb:#F5B63A;--ok:#4ADE80;--bad:#F87171;--blue:#5CA4FF;
+--tek:#FF7A3D;--inf:#4ADE80;--meg:#5CA4FF}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(900px 420px at 88% -8%,rgba(124,92,240,.20),transparent 62%),radial-gradient(700px 400px at -5% 40%,rgba(59,130,246,.10),transparent 60%),var(--bg);color:var(--tx);font:15px/1.5 'IBM Plex Sans','Segoe UI',system-ui,sans-serif;min-height:100vh}
+h1{margin:0;font-size:30px;letter-spacing:-.02em;line-height:1.2}
+.mu{color:var(--mu);font-size:14px}
+.bar{height:4px;background:linear-gradient(90deg,#8B6CF0,#B7A4FF)}
+.app{max-width:1240px;margin:0 auto;padding:20px;display:flex;flex-wrap:wrap;gap:24px;align-items:flex-start}
+.sb{flex:0 0 240px;background:var(--s1);border:1px solid var(--line);border-radius:18px;padding:18px 12px;display:flex;flex-direction:column;gap:4px;position:sticky;top:16px}
+.br{display:flex;align-items:center;gap:12px;padding:2px 8px 18px;font-weight:600;font-size:16px}
+.mk{width:32px;height:32px;border-radius:9px;background:linear-gradient(135deg,#8B6CF0,#B7A4FF);flex:none}
+.nv{display:flex;align-items:center;min-height:46px;width:100%;padding:8px 12px;color:var(--mu);border-radius:10px;cursor:pointer;background:none;border:0;font:inherit;text-align:left}
+.nv.on{background:#1C1A33;color:var(--tx);font-weight:600;box-shadow:inset 3px 0 0 var(--vio)}
+.me{margin-top:14px;padding:14px 8px 0;border-top:1px solid var(--line);font-size:13px}
+.me b{display:block;font-size:14px}
+.mn{flex:1 1 560px;min-width:0;display:flex;flex-direction:column;gap:20px}
+.cd{background:var(--s1);border:1px solid var(--line);border-radius:16px;padding:22px;display:flex;flex-direction:column;gap:16px}
+.g{display:flex;flex-wrap:wrap;gap:14px}
+.f{flex:1 1 220px;display:flex;flex-direction:column;gap:6px}
+.f.full{flex:1 1 100%}
+.f label{font-size:14px;font-weight:600}
+input,select,textarea{width:100%;min-height:46px;background:var(--bg);color:var(--tx);border:1px solid var(--line);border-radius:10px;padding:0 12px;font:inherit}
+textarea{padding:10px 12px;min-height:150px;resize:vertical}
+input[readonly]{background:#100F1C;color:var(--mu)}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--vio);outline-offset:1px}
+.ch{flex:1 1 140px;min-height:48px;display:flex;align-items:center;justify-content:center;gap:10px;background:#1C1A33;color:var(--tx);border:1px solid var(--line);border-radius:12px;font:inherit;font-weight:500;cursor:pointer}
+.ch::before{content:"";width:10px;height:10px;border-radius:50%;background:var(--d,var(--vio))}
+.ch.on{background:var(--s3);border:2px solid var(--d,var(--vio));font-weight:600}
+.prim{min-height:46px;background:var(--grad);color:#fff;border:0;border-radius:10px;padding:0 22px;font:inherit;font-weight:700;cursor:pointer}
+.prim:disabled{opacity:.5;cursor:default}
+.amb{background:var(--amb);color:#1A1204}
+.bt{min-height:42px;background:transparent;color:var(--tx);border:1px solid var(--line);border-radius:10px;padding:0 16px;font:inherit;font-weight:500;cursor:pointer}
+.bt.sm,.prim.sm{min-height:36px;padding:0 12px;font-size:13px}
+.ft{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px;padding-top:16px;border-top:1px solid var(--line)}
+.tt small{display:block;color:var(--mu);font-size:13px}.tt b{font-size:26px;color:var(--ok)}
+.al{padding:12px 16px;border-radius:10px;font-size:14px;font-weight:500}
+.al.w{background:rgba(245,182,58,.16);border:1px solid var(--amb);color:var(--amb)}
+.al.o{background:rgba(74,222,128,.14);border:1px solid var(--ok);color:var(--ok)}
+.al.i{background:rgba(92,164,255,.16);border:1px solid var(--blue);color:#9CC6FF}
+.al.e{background:rgba(248,113,113,.14);border:1px solid var(--bad);color:var(--bad)}
+.stats{display:flex;flex-wrap:wrap;gap:14px}
+.sc{flex:1 1 140px;background:#15132A;border:1px solid var(--line);border-top:4px solid var(--t);border-radius:16px;padding:16px 18px}
+.sc small{color:var(--mu)}.sc b{display:block;font-size:34px;line-height:1.1}
+.pill{display:inline-block;border-radius:999px;padding:2px 11px;font-size:12.5px;font-weight:600;white-space:nowrap}
+.p-t{background:rgba(255,122,61,.26);color:#FF9A6E}.p-i{background:rgba(74,222,128,.28);color:var(--ok)}.p-m{background:rgba(92,164,255,.28);color:#9CC6FF}
+.p-w{background:rgba(245,182,58,.24);color:var(--amb)}.p-o{background:rgba(74,222,128,.28);color:var(--ok)}.p-v{background:rgba(139,108,240,.28);color:var(--vio2)}.p-n{background:rgba(255,255,255,.1)}.p-b{background:rgba(92,164,255,.28);color:#9CC6FF}.p-r{background:rgba(248,113,113,.22);color:var(--bad)}
+.row{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;padding:12px 0;border-top:1px solid var(--line)}
+.item{background:#15132A;border:1px solid var(--line);border-left:4px solid var(--vio);border-radius:14px;padding:16px 18px;display:flex;flex-direction:column;gap:6px}
+.hd{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.rt{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.id{font-family:'IBM Plex Mono',monospace;font-size:13px;color:var(--mu)}
+.nm{font-size:17px;font-weight:700;text-transform:uppercase}
+.ln{font-size:14px;color:var(--mu);line-height:1.7}.ln i{font-style:normal;color:var(--tx)}
+.bs{display:flex;flex-wrap:wrap;gap:10px;padding-top:6px}
+.sec{display:flex;align-items:center;gap:14px;font-size:20px;font-weight:700}
+.sec::after{content:"";flex:1;height:1px;background:var(--line)}
+.fl{display:flex;flex-wrap:wrap;gap:8px}
+.cp{min-height:38px;padding:0 15px;background:#1C1A33;color:var(--tx);border:1px solid var(--line);border-radius:999px;font:inherit;font-weight:500;cursor:pointer}
+.cp.on{background:var(--grad);border-color:var(--vio);font-weight:700}
+.login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+.lc{width:100%;max-width:420px;background:var(--s1);border:1px solid var(--line);border-radius:18px;padding:30px;display:flex;flex-direction:column;gap:18px}
+.shot{max-width:100%;max-height:260px;border-radius:10px;border:1px solid var(--line)}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--s3);border:1px solid var(--vio);padding:12px 20px;border-radius:12px;z-index:9;max-width:90vw}
+.hide{display:none!important}
+@media(max-width:820px){.sb{position:static;flex:1 1 100%;flex-direction:row;flex-wrap:wrap;padding:10px}.br{padding:4px 8px}.me{margin:0 0 0 auto;border:0;padding:0 6px}.nv{width:auto;min-height:40px}h1{font-size:25px}.app{padding:12px;gap:14px}}
+</style>
+</head>
+<body>
+<div class="bar"></div>
+<div id="root"></div>
+<div id="toast" class="toast hide"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script>
+(function(){
+"use strict";
+/* ====== CONFIG (misma de tu Panel Comercial CRG; el apiKey no es secreto, la seguridad son las reglas de Firestore) ====== */
+var FB_CONFIG={apiKey:"AIzaSyDEXEF0mRg3_nF6cZJLSNhtxMRI6qLvVKs",authDomain:"panel-comercial-crg.firebaseapp.com",projectId:"panel-comercial-crg",storageBucket:"panel-comercial-crg.firebasestorage.app",messagingSenderId:"519604238226",appId:"1:519604238226:web:0fdd9e15a3d5b943e9334b"};
+var ADMIN_EMAIL='nefertigonza@gmail.com';
+var BRANDS={tekio:{n:'Tekio',pill:'p-t',color:'#FF7A3D'},infot:{n:'InfoT',pill:'p-i',color:'#4ADE80'},megalaptop:{n:'MegaLaptop',pill:'p-m',color:'#5CA4FF'}};
+var CANALES=['Tienda','WhatsApp','Instagram','Facebook','Referido','Leads','Otro'];
+var ROLES={asesor:'Asesor',tecnico:'Técnico',asignadora:'Asignadora'};
+var NAV={
+  asesor:[['venta','Registrar venta'],['ventas','Mis ventas'],['casos','Garantías'],['leads','Mis leads']],
+  tecnico:[['tcasos','Casos']],
+  asignadora:[['asignar','Asignar leads']],
+  admin:[['resumen','Resumen'],['turno','Turno de hoy'],['personas','Personas']]
+};
+
+firebase.initializeApp(FB_CONFIG);
+var auth=firebase.auth(), db=firebase.firestore();
+
+/* ====== utilidades ====== */
+function $(id){return document.getElementById(id);}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+function money(n){return '$'+(Number(n)||0).toFixed(2);}
+function num(v){return Number(String(v).replace(',','.'))||0;}
+function hoy(){var d=new Date();return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);}
+function fdate(iso){if(!iso)return '—';var p=String(iso).split('-');return p.length===3?p[2]+'/'+p[1]+'/'+p[0].slice(2):iso;}
+function toast(m){var t=$('toast');t.textContent=m;t.classList.remove('hide');clearTimeout(toast._t);toast._t=setTimeout(function(){t.classList.add('hide');},3200);}
+function brandPill(b){var x=BRANDS[b]||{n:b,pill:'p-n'};return '<span class="pill '+x.pill+'">'+esc(x.n)+'</span>';}
+function ts(){return firebase.firestore.FieldValue.serverTimestamp();}
+function norm(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();}
+function errMsg(e){var c=e&&e.code||'';
+  if(c==='auth/invalid-credential'||c==='auth/wrong-password'||c==='auth/user-not-found'||c==='auth/invalid-login-credentials')return 'Correo o clave incorrectos.';
+  if(c==='auth/too-many-requests')return 'Demasiados intentos. Espera unos minutos.';
+  if(c==='auth/email-already-in-use')return 'Ese correo ya tiene una cuenta.';
+  if(c==='auth/weak-password')return 'La clave debe tener al menos 6 caracteres.';
+  if(c==='auth/invalid-email')return 'El correo no es válido.';
+  if(c==='permission-denied')return 'No tienes permiso para esa acción.';
+  return (e&&e.message)||'Ocurrió un error.';}
+
+/* ====== estado ====== */
+var S={user:null,perfil:null,role:null,view:null,data:{},unsubs:{},cache:{},msg:null,ready:false,authErr:''};
+function sub(name,query,cb){if(S.unsubs[name])S.unsubs[name]();S.unsubs[name]=query.onSnapshot(function(snap){S.data[name]=snap.docs.map(function(d){var o=d.data();o.id=d.id;return o;});cb&&cb();render();},function(e){S.data[name]=[];S.msg={c:'e',t:'No se pudo leer '+name+': '+errMsg(e)};render();});}
+function unsubAll(){Object.keys(S.unsubs).forEach(function(k){S.unsubs[k]();});S.unsubs={};S.data={};}
+function marcas(){return (S.perfil&&S.perfil.marcas)||[];}
+function nombre(){return S.role==='admin'?'Supervisora':(S.perfil&&S.perfil.nombre)||'';}
+
+/* sucursales activas de una marca, leídas del CRG (colección store, solo lectura) */
+function sucursales(marca){
+  if(S.cache['suc_'+marca])return Promise.resolve(S.cache['suc_'+marca]);
+  return db.doc('store/crg_sucursales_'+marca).get().then(function(s){
+    var v=(s.exists&&s.data().value)||[];var out=v.filter(function(x){return x.activo!==false;}).map(function(x){return x.nombre;});
+    S.cache['suc_'+marca]=out;return out;}).catch(function(){return [];});
+}
+function ventasCRG(marca){
+  if(S.cache['v_'+marca])return Promise.resolve(S.cache['v_'+marca]);
+  return db.doc('store/crg_ventas_'+marca).get().then(function(s){var v=(s.exists&&s.data().value)||[];S.cache['v_'+marca]=v;return v;}).catch(function(){return [];});
+}
+
+/* ====== login ====== */
+auth.onAuthStateChanged(function(u){
+  unsubAll();S.user=u;S.perfil=null;S.role=null;S.view=null;S.msg=null;
+  if(!u){S.ready=true;render();return;}
+  if(u.email&&u.email.toLowerCase()===ADMIN_EMAIL){S.role='admin';S.ready=true;go('resumen');return;}
+  db.doc('usuarios/'+u.uid).get().then(function(s){
+    S.ready=true;
+    if(!s.exists){S.authErr='Tu cuenta todavía no tiene perfil. Avísale a tu supervisora.';render();return;}
+    S.perfil=s.data();
+    if(S.perfil.activo!==true){S.authErr='Tu usuario está desactivado. Habla con tu supervisora.';render();return;}
+    S.role=S.perfil.rol;S.authErr='';
+    var nav=NAV[S.role];if(!nav){S.authErr='Tu rol no es válido. Avísale a tu supervisora.';render();return;}
+    go(nav[0][0]);
+  }).catch(function(e){S.ready=true;S.authErr=errMsg(e);render();});
+});
+
+/* ====== navegación y suscripciones por vista ====== */
+function go(view){
+  S.view=view;S.msg=null;
+  Object.keys(S.unsubs).forEach(function(k){S.unsubs[k]();});S.unsubs={};S.data={};
+  var uid=S.user.uid;
+  if(S.role==='asesor'){
+    sub('turno_mio',db.collection('turnos').where('uid','==',uid).where('fecha','==',hoy()));
+    if(view==='venta'||view==='ventas')sub('ventas_asesor',db.collection('ventas_asesor').where('asesorUid','==',uid));
+    if(view==='casos')sub('casos',db.collection('casos').where('asesorUid','==',uid));
+    if(view==='leads')sub('leads',db.collection('leads').where('asesorUid','==',uid));
+  }
+  if(S.role==='tecnico'&&view==='tcasos'){
+    sub('casos_mios',db.collection('casos').where('tecnicoUid','==',uid));
+    var m=marcas();
+    if(m.length)sub('casos_libres',db.collection('casos').where('tecnicoUid','==',null).where('marca','in',m.slice(0,10)));
+  }
+  if(S.role==='asignadora'&&view==='asignar'){
+    var mm=marcas();
+    if(mm.length)sub('leads',db.collection('leads').where('marca','in',mm.slice(0,10)));
+    sub('turnos',db.collection('turnos').where('fecha','==',hoy()));
+  }
+  if(S.role==='admin'){
+    if(view==='resumen'){sub('ventas_asesor',db.collection('ventas_asesor'));sub('casos',db.collection('casos'));sub('leads',db.collection('leads'));}
+    if(view==='personas')sub('usuarios',db.collection('usuarios'));
+    if(view==='turno'){sub('turnos',db.collection('turnos').where('fecha','==',hoy()));sub('usuarios',db.collection('usuarios'));}
+  }
+  render();
+}
+
+/* ====== render ====== */
+function grab(){var m={},a=document.activeElement,els=document.querySelectorAll('#root input[id],#root select[id],#root textarea[id]');
+  for(var i=0;i<els.length;i++){var e=els[i];if(e.type==='file')continue;m[e.id]=e.type==='checkbox'?e.checked:e.value;}
+  m.__f=a&&a.id?a.id:null;m.__s=a&&a.selectionStart!=null?a.selectionStart:null;return m;}
+function restore(m){Object.keys(m).forEach(function(id){if(id==='__f'||id==='__s')return;var e=$(id);if(!e)return;
+  if(e.type==='checkbox'){e.checked=m[id];return;}if(m[id]===''||m[id]==null)return;
+  if(e.tagName==='SELECT'){for(var i=0;i<e.options.length;i++)if(e.options[i].value===m[id]||e.options[i].text===m[id]){e.value=e.options[i].value;break;}}else e.value=m[id];});
+  if(m.__f&&$(m.__f)){var f=$(m.__f);f.focus();if(m.__s!=null){try{f.setSelectionRange(m.__s,m.__s);}catch(x){}}}}
+function render(){
+  var root=$('root'),keep=grab();
+  if(!S.ready){root.innerHTML='<div class="login"><div class="mu">Cargando…</div></div>';return;}
+  if(!S.user||!S.role){root.innerHTML=loginHTML();restore(keep);after();return;}
+  var nav=NAV[S.role].map(function(n){return '<button class="nv'+(S.view===n[0]?' on':'')+'" onclick="A.go(\''+n[0]+'\')">'+n[1]+'</button>';}).join('');
+  var who=S.role==='admin'?'Supervisora':ROLES[S.role];
+  root.innerHTML='<div class="app"><aside class="sb"><div class="br"><span class="mk"></span>Panel de Asesores</div>'+nav+
+    '<div class="me"><b>'+esc(nombre())+'</b><span class="mu">'+esc(who)+'</span><br><button class="bt sm" style="margin-top:8px" onclick="A.out()">Salir</button></div></aside><main class="mn">'+
+    (S.msg?'<div class="al '+S.msg.c+'">'+esc(S.msg.t)+'</div>':'')+(S.role==='asesor'?turnoBar():'')+viewHTML()+'</main></div>';
+  restore(keep);after();
+}
+function hhmm(ms){if(!ms)return '';var d=new Date(ms);return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);}
+function turnoBar(){
+  var t=(S.data.turno_mio||[])[0];
+  if(t&&t.sacado)return '<div class="al w">Tu supervisora te sacó del turno de hoy. Habla con ella si necesitas volver.</div>';
+  if(t&&t.activo)return '<div class="al o" style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between"><span>Estás en turno desde las '+hhmm(t.entradaMs)+'. Los leads te llegan a ti.</span><button class="bt sm" onclick="A.salirTurno()">Salir de turno</button></div>';
+  return '<div class="al i" style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between"><span>No estás en turno. Entra para recibir leads hoy.</span><button class="prim sm" onclick="A.entrarTurno()">Entrar en turno</button></div>';
+}
+function loginHTML(){
+  return '<div class="login"><div class="lc"><div class="br"><span class="mk"></span>Panel de Asesores</div><div><h1>Ingresar</h1><div class="mu" style="padding-top:4px">Entra con tu correo y tu clave.</div></div>'+
+  (S.authErr?'<div class="al e">'+esc(S.authErr)+'</div>':'')+
+  '<div class="f"><label for="lg-e">Correo</label><input id="lg-e" type="email" autocomplete="username" placeholder="tu@correo.com"></div>'+
+  '<div class="f"><label for="lg-p">Clave</label><input id="lg-p" type="password" autocomplete="current-password" placeholder="Tu clave"></div>'+
+  '<button class="prim" id="lg-b" onclick="A.login()">Ingresar</button><div class="mu">¿Olvidaste tu clave? Pídele a tu supervisora que te la restablezca.</div>'+
+  (S.user?'<button class="bt" onclick="A.out()">Cerrar sesión</button>':'')+'</div></div>';
+}
+function viewHTML(){
+  var v=S.view;
+  if(v==='venta')return vVenta();
+  if(v==='ventas')return vMisVentas();
+  if(v==='casos')return vCasosAsesor();
+  if(v==='leads')return vLeadsAsesor();
+  if(v==='tcasos')return vCasosTecnico();
+  if(v==='asignar')return vAsignar();
+  if(v==='resumen')return vResumen();
+  if(v==='personas')return vPersonas();
+  if(v==='turno')return vTurno();
+  return '';
+}
+function after(){
+  if(S.view==='venta')A.fillSuc();
+  if(S.view==='casos')A.fillSucCaso();
+  var e=$('lg-p');if(e)e.onkeydown=function(ev){if(ev.key==='Enter')A.login();};
+}
+
+/* ====== ASESOR: registrar venta ====== */
+var F={brand:null,nota:'',cant:'1',precio:'',suc:''};
+function vVenta(){
+  var m=marcas();
+  if(!m.length)return '<h1>Registrar venta</h1><div class="al w">Tu usuario no tiene marcas asignadas. Avísale a tu supervisora.</div>';
+  if(!F.brand||m.indexOf(F.brand)<0)F.brand=m[0];
+  var chips=m.map(function(b){return '<button class="ch'+(F.brand===b?' on':'')+'" style="--d:'+(BRANDS[b]?BRANDS[b].color:'#8B6CF0')+'" onclick="A.brand(\''+b+'\')">'+esc((BRANDS[b]||{n:b}).n)+'</button>';}).join('');
+  var dup=dupNota();
+  var total=num(F.cant)*num(F.precio);
+  return '<div><h1>Registrar venta</h1><div class="mu" style="padding-top:4px">Completa los datos y guarda. La venta le llega directo a tu supervisora.</div></div>'+
+  '<div class="cd"><div class="sec">1 · Marca</div><div class="g">'+chips+'</div><div class="sec">2 · Datos de la venta</div><div class="g">'+
+  '<div class="f"><label for="v-fecha">Fecha</label><input id="v-fecha" type="date" value="'+hoy()+'"></div>'+
+  '<div class="f"><label for="v-nota">N° nota fina</label><input id="v-nota" type="text" inputmode="numeric" placeholder="Ej. 1555" value="'+esc(F.nota)+'" oninput="A.nota(this.value)"></div>'+
+  '<div class="f"><label for="v-suc">Sucursal</label><select id="v-suc"><option value="">Cargando…</option></select></div>'+
+  '<div class="f"><label>Asesor</label><input type="text" value="'+esc(nombre())+'" readonly></div>'+
+  '<div class="f"><label for="v-prod">Producto</label><input id="v-prod" type="text" placeholder="Ej. Laptop 15"></div>'+
+  '<div class="f"><label for="v-cant">Cantidad</label><input id="v-cant" type="text" inputmode="numeric" value="'+esc(F.cant)+'" oninput="A.calc()"></div>'+
+  '<div class="f"><label for="v-precio">Precio unitario</label><input id="v-precio" type="text" inputmode="decimal" placeholder="$ 0.00" value="'+esc(F.precio)+'" oninput="A.calc()"></div>'+
+  '<div class="f"><label for="v-canal">Canal</label><select id="v-canal">'+CANALES.map(function(c){return '<option>'+c+'</option>';}).join('')+'</select></div>'+
+  '<div class="f full"><label for="v-obs">Observaciones (opcional)</label><input id="v-obs" type="text" placeholder="Notas sobre la venta"></div></div>'+
+  '<div id="v-dup">'+(dup?'<div class="al w">La nota fina '+esc(F.nota)+' ya está registrada. Revisa el número antes de guardar.</div>':'')+'</div>'+
+  '<div class="ft"><div class="tt"><small>Total de la venta</small><b id="v-total">'+money(total)+'</b></div><div class="fl"><button class="bt" onclick="A.cancelVenta()">Limpiar</button><button class="prim" id="v-save" onclick="A.saveVenta()">Guardar venta</button></div></div></div>';
+}
+function dupNota(){var n=F.nota.trim();if(!n)return false;return (S.data.ventas_asesor||[]).some(function(v){return String(v.notaFina)===n&&v.marca===F.brand;});}
+
+function vMisVentas(){
+  var list=(S.data.ventas_asesor||[]).slice().sort(function(a,b){return (b.fecha||'').localeCompare(a.fecha||'')||String(b.notaFina).localeCompare(String(a.notaFina));});
+  var mes=hoy().slice(0,7);
+  var delMes=list.filter(function(v){return (v.fecha||'').slice(0,7)===mes;});
+  var filtro=S.fv||'Todas';
+  var cards=Object.keys(BRANDS).map(function(b){var l=delMes.filter(function(v){return v.marca===b;});return '<div class="sc" style="--t:'+BRANDS[b].color+'"><small>'+BRANDS[b].n+'</small><b>'+l.length+'</b><span class="mu">'+money(l.reduce(function(a,v){return a+(v.total||0);},0))+' vendidos</span></div>';}).join('');
+  var rows=list.filter(function(v){return filtro==='Todas'||v.marca===filtro;}).map(function(v){
+    return '<div class="row"><span class="mu" style="flex:0 0 78px">'+fdate(v.fecha)+'</span><span class="mu" style="flex:0 0 74px">N° '+esc(v.notaFina)+'</span>'+brandPill(v.marca)+
+    '<span style="flex:1 1 160px;font-weight:600">'+esc(v.producto)+' <span class="mu" style="font-weight:400">× '+esc(v.cantidad)+'</span></span><span class="mu" style="flex:0 0 90px">'+esc(v.canal)+'</span>'+
+    (v.porRevisar?'<span class="pill p-w">Por revisar</span>':'')+'<b style="flex:0 0 90px;text-align:right;color:var(--ok)">'+money(v.total)+'</b></div>';}).join('')||'<div class="mu" style="padding:12px 0">Aún no hay ventas registradas.</div>';
+  var chips=['Todas'].concat(Object.keys(BRANDS)).map(function(b){var n=b==='Todas'?b:BRANDS[b].n;return '<button class="cp'+(filtro===b?' on':'')+'" onclick="A.fv(\''+b+'\')">'+n+'</button>';}).join('');
+  return '<div><h1>Mis ventas</h1><div class="mu" style="padding-top:4px">Lo que has registrado este mes y antes.</div></div><div class="stats">'+cards+'</div><div class="cd"><div class="fl">'+chips+'</div><div>'+rows+'</div></div>';
+}
+
+/* ====== ASESOR: garantías ====== */
+var C={tipo:'Garantía',nota:'',found:null,msg:''};
+function vCasosAsesor(){
+  var m=marcas();
+  var list=(S.data.casos||[]).slice().sort(function(a,b){return (b.fechaRecibido||'').localeCompare(a.fechaRecibido||'');});
+  var abiertos=list.filter(function(c){return c.estado!=='Resuelto';}).length;
+  var form='';
+  if(S.showCaso){
+    var f=C.found;
+    form='<div class="cd"><div class="sec">Nuevo caso</div><div class="g">'+['Garantía','Servicio técnico'].map(function(t){return '<button class="ch'+(C.tipo===t?' on':'')+'" onclick="A.tipoCaso(\''+t+'\')">'+t+'</button>';}).join('')+'</div>'+
+    '<div class="g"><div class="f"><label for="c-nota">N° nota fina de la venta</label><input id="c-nota" type="text" inputmode="numeric" placeholder="Ej. 1555" value="'+esc(C.nota)+'" oninput="A.notaCaso(this.value)"></div>'+
+    '<div class="f"><label for="c-marca">Marca</label><select id="c-marca" onchange="A.fillSucCaso()">'+m.map(function(b){return '<option value="'+b+'"'+(f&&f.marca===b?' selected':'')+'>'+esc((BRANDS[b]||{n:b}).n)+'</option>';}).join('')+'</select></div></div>'+
+    (C.msg?'<div class="al i">'+esc(C.msg)+'</div>':'')+
+    '<div class="g"><div class="f"><label for="c-suc">Sucursal</label><select id="c-suc"></select></div><div class="f"><label for="c-cli">Cliente</label><input id="c-cli" type="text" placeholder="Nombre del cliente"></div>'+
+    '<div class="f"><label for="c-eq">Equipo</label><input id="c-eq" type="text" value="'+esc(f?f.producto:'')+'" placeholder="Ej. DELL LATITUDE 7480"></div><div class="f"><label for="c-ser">Serial</label><input id="c-ser" type="text" placeholder="Serial del equipo"></div>'+
+    '<div class="f full"><label for="c-falla">Falla reportada</label><input id="c-falla" type="text" placeholder="Ej. No carga la batería"></div></div>'+
+    '<div class="ft"><span class="mu">El técnico verá el caso y lo actualiza.</span><div class="fl"><button class="bt" onclick="A.showCaso(false)">Cancelar</button><button class="prim" onclick="A.saveCaso()">Guardar caso</button></div></div></div>';
+  }
+  var cards=list.map(function(c){return casoCard(c);}).join('')||'<div class="mu">Aún no has registrado casos.</div>';
+  return '<div><h1>Garantías</h1><div class="mu" style="padding-top:4px">Garantías y servicio técnico de tus clientes.</div></div>'+
+  '<div class="stats"><div class="sc" style="--t:#F5B63A"><small>Abiertos</small><b>'+abiertos+'</b></div><div class="sc" style="--t:#4ADE80"><small>Resueltos</small><b>'+(list.length-abiertos)+'</b></div></div>'+
+  (S.showCaso?form:'<div><button class="prim" onclick="A.showCaso(true)">+ Nuevo caso</button></div>')+'<div class="sec">Mis casos</div>'+cards;
+}
+function estPill(e){return '<span class="pill '+(e==='Resuelto'?'p-o':e==='En proceso'?'p-b':'p-w')+'">'+esc(e||'Pendiente')+'</span>';}
+function casoCard(c,act){
+  return '<div class="item"><div class="hd"><span class="id">'+esc(c.folio)+'</span><span class="pill '+(c.tipo==='Garantía'?'p-v':'p-b')+'">'+esc(c.tipo)+'</span>'+brandPill(c.marca)+'<span class="rt">'+estPill(c.estado)+(c.fechaEntregado?'<span class="pill p-o">Entregado</span>':'')+'</span></div>'+
+  '<div class="nm">'+esc(c.cliente)+'</div><div class="ln">Equipo: <i>'+esc(c.equipo)+'</i> · Serial: <i>'+esc(c.serial||'—')+'</i></div><div class="ln">Falla: <i>'+esc(c.falla)+'</i> · Técnico: <i>'+esc(c.tecnico||'Sin asignar')+'</i></div>'+
+  '<div class="ln">Recibido: <i>'+fdate(c.fechaRecibido)+'</i> · Resuelto: <i>'+fdate(c.fechaResuelto)+'</i> · Entregado: <i>'+fdate(c.fechaEntregado)+'</i></div>'+
+  (c.observaciones?'<div class="ln">Obs: <i>'+esc(c.observaciones)+'</i></div>':'')+(act||'')+'</div>';
+}
+
+/* ====== ASESOR: leads ====== */
+function vLeadsAsesor(){
+  var list=(S.data.leads||[]).slice().sort(function(a,b){return (b.fecha||'').localeCompare(a.fecha||'');});
+  var pend=list.filter(function(l){return !l.respondido;}).length;
+  var cards=list.map(function(l){
+    return '<div class="item" style="border-left-color:'+(l.respondido?'var(--ok)':'var(--amb)')+'"><div class="hd">'+brandPill(l.marca)+'<span class="mu">'+fdate(l.fecha)+'</span><span class="rt"><span class="pill '+(l.respondido?'p-o':'p-w')+'">'+(l.respondido?'Respondido':'Por responder')+'</span></span></div>'+
+    '<div class="nm">'+esc(l.nombre)+'</div><div class="ln">Teléfono: <i>'+esc(l.telefono)+'</i>'+(l.tipo?' · Tipo: <i>'+esc(l.tipo)+'</i>':'')+'</div>'+
+    (l.equipo?'<div class="ln">Equipo: <i>'+esc(l.equipo)+'</i></div>':'')+(l.uso?'<div class="ln">Uso: <i>'+esc(l.uso)+'</i></div>':'')+(l.obs?'<div class="ln">Observaciones: <i>'+esc(l.obs)+'</i></div>':'')+
+    (l.captura?'<div style="padding-top:6px"><img class="shot" src="'+l.captura+'" alt="Captura de la respuesta"></div>':
+      '<div class="bs"><label class="prim sm" style="display:inline-flex;align-items:center;cursor:pointer">Subir captura de la respuesta<input type="file" accept="image/*" class="hide" onchange="A.captura(\''+l.id+'\',this)"></label></div>')+'</div>';
+  }).join('')||'<div class="mu">Todavía no tienes leads asignados.</div>';
+  return '<div><h1>Mis leads</h1><div class="mu" style="padding-top:4px">Escríbele a cada cliente y sube la captura como prueba.</div></div><div class="stats"><div class="sc" style="--t:#F5B63A"><small>Por responder</small><b>'+pend+'</b></div><div class="sc" style="--t:#4ADE80"><small>Respondidos</small><b>'+(list.length-pend)+'</b></div></div>'+cards;
+}
+
+/* ====== TÉCNICO ====== */
+function vCasosTecnico(){
+  var all=(S.data.casos_mios||[]).concat(S.data.casos_libres||[]);
+  var seen={};all=all.filter(function(c){if(seen[c.id])return false;seen[c.id]=1;return true;});
+  all.sort(function(a,b){return (b.fechaRecibido||'').localeCompare(a.fechaRecibido||'');});
+  var f=S.ft||'Abiertos';
+  var abiertos=all.filter(function(c){return c.estado!=='Resuelto'||!c.fechaEntregado;});
+  var shown=all.filter(function(c){return f==='Todos'||(f==='Abiertos'?c.estado!=='Resuelto':f==='Por entregar'?(c.estado==='Resuelto'&&!c.fechaEntregado):(c.estado===f));});
+  var cnt=function(fn){return all.filter(fn).length;};
+  var cards=shown.map(function(c){
+    var mio=c.tecnicoUid===S.user.uid;
+    var btns=!mio?'<button class="prim sm" onclick="A.tomar(\''+c.id+'\')">Tomar caso</button>':
+      ['Pendiente','En proceso','Resuelto'].map(function(e){return '<button class="cp'+(c.estado===e?' on':'')+'" onclick="A.estado(\''+c.id+'\',\''+e+'\')">'+e+'</button>';}).join('')+
+      (c.estado==='Resuelto'&&!c.fechaEntregado?'<button class="prim sm amb" onclick="A.entregar(\''+c.id+'\')">Marcar entregado</button>':'')+
+      '<button class="bt sm" onclick="A.obs(\''+c.id+'\')">Observación</button>';
+    return casoCard(c,'<div class="bs">'+btns+'</div>');
+  }).join('')||'<div class="mu">No hay casos en esta vista.</div>';
+  var chips=['Abiertos','Pendiente','En proceso','Por entregar','Todos'].map(function(x){return '<button class="cp'+(f===x?' on':'')+'" onclick="A.ftec(\''+x+'\')">'+x+'</button>';}).join('');
+  return '<div><h1>Mesa de garantías</h1><div class="mu" style="padding-top:4px">Casos de tus marcas. Toma un caso para actualizarlo.</div></div><div class="stats">'+
+  '<div class="sc" style="--t:#F5B63A"><small>Pendientes</small><b>'+cnt(function(c){return c.estado==='Pendiente'||!c.estado;})+'</b></div><div class="sc" style="--t:#5CA4FF"><small>En proceso</small><b>'+cnt(function(c){return c.estado==='En proceso';})+'</b></div>'+
+  '<div class="sc" style="--t:#4ADE80"><small>Resueltos</small><b>'+cnt(function(c){return c.estado==='Resuelto';})+'</b></div><div class="sc" style="--t:#B7A4FF"><small>Por entregar</small><b>'+cnt(function(c){return c.estado==='Resuelto'&&!c.fechaEntregado;})+'</b></div></div>'+
+  '<div class="fl">'+chips+'</div>'+cards;
+}
+
+/* ====== ASIGNADORA ====== */
+var P={text:'',marca:null};
+function turnoHoy(){return (S.data.turnos||[]).filter(function(t){return t.activo===true&&t.sacado!==true;});}
+function enTurnoDe(marca){return turnoHoy().filter(function(t){return (t.marcas||[]).indexOf(marca)>=0;}).sort(function(a,b){return (a.nombre||'').localeCompare(b.nombre||'');}).map(function(t){return {id:t.uid,nombre:t.nombre};});}
+function selMarca(){var m=marcas();return P.marca&&m.indexOf(P.marca)>=0?P.marca:m[0];}
+function parseLeads(t){
+  var blocks=[],cur=null,keys={nombre:'nombre',cliente:'nombre',telefono:'telefono',tel:'telefono',whatsapp:'telefono',celular:'telefono',tipo:'tipo',equipo:'equipo',nuevo:'equipo',refurbished:'equipo',producto:'equipo',uso:'uso',observaciones:'obs',observacion:'obs',obs:'obs',nota:'obs',notas:'obs'};
+  String(t||'').split(/\r?\n/).forEach(function(line){
+    var m=line.match(/^\s*([^:]{2,30}):\s*(.*)$/);
+    if(!m)return;
+    var k=keys[norm(m[1])];if(!k)return;
+    if(k==='nombre'&&cur&&cur.nombre){blocks.push(cur);cur=null;}
+    if(!cur)cur={};
+    cur[k]=(cur[k]?cur[k]+' · ':'')+m[2].trim();
+  });
+  if(cur)blocks.push(cur);
+  return blocks.filter(function(b){return b.nombre||b.telefono;});
+}
+function plan(blocks,asesores,leads){
+  var cnt={};asesores.forEach(function(a){cnt[a.id]=0;});
+  (leads||[]).forEach(function(l){if(l.fecha===hoy()&&cnt[l.asesorUid]!=null)cnt[l.asesorUid]++;});
+  return blocks.map(function(b){
+    var best=null;asesores.forEach(function(a){if(best===null||cnt[a.id]<cnt[best.id])best=a;});
+    if(best)cnt[best.id]++;
+    return {b:b,a:best};
+  });
+}
+function vAsignar(){
+  var m=marcas();
+  if(!m.length)return '<h1>Asignar leads</h1><div class="al w">Tu usuario no tiene marcas asignadas. Avísale a tu supervisora.</div>';
+  var marca=selMarca(),ases=enTurnoDe(marca);
+  var blocks=parseLeads(P.text),pl=plan(blocks,ases,S.data.leads);
+  var leads=(S.data.leads||[]).slice().sort(function(a,b){return (b.creadoMs||0)-(a.creadoMs||0);}).slice(0,40);
+  var chips=ases.map(function(a){return '<span class="pill p-v" style="font-size:14px;padding:6px 14px">'+esc(a.nombre)+'</span>';}).join('')||'<span class="mu">Ningún asesor de '+esc((BRANDS[marca]||{n:marca}).n)+' se ha puesto en turno todavía. Ellos entran desde su propio panel.</span>';
+  var marcaSel=m.length>1?'<div class="f"><label>Marca de estos leads</label><div class="g">'+m.map(function(b){return '<button class="ch'+(marca===b?' on':'')+'" style="--d:'+BRANDS[b].color+'" onclick="A.pmarca(\''+b+'\')">'+BRANDS[b].n+'</button>';}).join('')+'</div></div>':'';
+  var prev=pl.map(function(x){return '<div class="item"><div class="hd"><span class="nm">'+esc(x.b.nombre||'(sin nombre)')+'</span><span class="rt"><span class="pill '+(x.a?'p-v':'p-r')+'">'+(x.a?'→ '+esc(x.a.nombre):'Sin asesor en turno')+'</span></span></div><div class="ln">Teléfono: <i>'+esc(x.b.telefono||'—')+'</i>'+(x.b.tipo?' · Tipo: <i>'+esc(x.b.tipo)+'</i>':'')+(x.b.equipo?' · Equipo: <i>'+esc(x.b.equipo)+'</i>':'')+(x.b.uso?' · Uso: <i>'+esc(x.b.uso)+'</i>':'')+'</div>'+(x.b.obs?'<div class="ln">Obs: <i>'+esc(x.b.obs)+'</i></div>':'')+'</div>';}).join('');
+  var hist=leads.map(function(l){var op=enTurnoDe(l.marca);return '<div class="row">'+brandPill(l.marca)+'<b style="flex:1 1 160px">'+esc(l.nombre)+'</b><span class="mu">'+esc(l.telefono)+'</span><span class="pill p-v">'+esc(l.asesor)+'</span><span class="pill '+(l.respondido?'p-o':'p-w')+'">'+(l.respondido?'Respondido':'Sin respuesta')+'</span>'+
+    (!l.respondido&&op.length?'<select style="width:auto;min-height:34px" onchange="A.reasignar(\''+l.id+'\',this.value)"><option value="">Reasignar…</option>'+op.map(function(a){return '<option value="'+a.id+'">'+esc(a.nombre)+'</option>';}).join('')+'</select>':'')+'</div>';}).join('')||'<div class="mu">Aún no hay leads registrados.</div>';
+  return '<div><h1>Asignar leads</h1><div class="mu" style="padding-top:4px">Marcas: '+m.map(function(b){return esc(BRANDS[b]?BRANDS[b].n:b);}).join(', ')+'</div></div>'+
+  '<div class="cd"><div class="sec">1 · Asesores en turno ahora</div><div class="fl">'+chips+'</div><div class="mu">Cada asesor se pone en turno desde su panel. Tu supervisora puede sacar a alguien del turno.</div></div>'+
+  '<div class="cd"><div class="sec">2 · Pega los leads</div>'+marcaSel+'<div class="f full"><label for="p-text">Un bloque por lead, con líneas "Campo: valor" (Nombre, Teléfono, Tipo, Equipo, Uso, Observaciones)</label><textarea id="p-text" oninput="A.ptext(this.value)" placeholder="Nombre: María Pérez\nTeléfono: 0414-0000000\nTipo: Nuevo\nUso: Estudio\nObservaciones: quiere pagar en cuotas">'+esc(P.text)+'</textarea></div>'+
+  (blocks.length?'<div class="sec">'+blocks.length+' lead'+(blocks.length>1?'s':'')+' detectado'+(blocks.length>1?'s':'')+' · reparto equitativo</div>'+prev:'')+
+  '<div class="ft"><span class="mu">Se reparte al asesor en turno que lleva menos leads hoy.</span><button class="prim" onclick="A.registrar()" '+((!blocks.length||!ases.length)?'disabled':'')+'>Registrar y asignar</button></div></div>'+
+  '<div class="sec">Leads registrados</div><div class="cd">'+hist+'</div>';
+}
+
+/* ====== SUPERVISORA ====== */
+function vResumen(){
+  var v=S.data.ventas_asesor||[],c=S.data.casos||[],l=S.data.leads||[];
+  var rev=v.filter(function(x){return x.porRevisar;});
+  var last=v.slice().sort(function(a,b){return (b.creadoMs||0)-(a.creadoMs||0);}).slice(0,25);
+  var rows=last.map(function(x){return '<div class="row"><span class="mu" style="flex:0 0 78px">'+fdate(x.fecha)+'</span>'+brandPill(x.marca)+'<b style="flex:1 1 140px">'+esc(x.asesor)+'</b><span class="mu">N° '+esc(x.notaFina)+' · '+esc(x.producto)+'</span>'+(x.porRevisar?'<span class="pill p-w">Por revisar</span>':'')+'<b style="color:var(--ok)">'+money(x.total)+'</b></div>';}).join('')||'<div class="mu">Aún no hay ventas registradas desde este panel.</div>';
+  return '<div><h1>Resumen</h1><div class="mu" style="padding-top:4px">Lo que el equipo ha registrado en este panel. El CRG lo recogerá de aquí.</div></div><div class="stats">'+
+  '<div class="sc" style="--t:#8B6CF0"><small>Ventas registradas</small><b>'+v.length+'</b></div><div class="sc" style="--t:#F5B63A"><small>Por revisar</small><b>'+rev.length+'</b></div>'+
+  '<div class="sc" style="--t:#5CA4FF"><small>Casos abiertos</small><b>'+c.filter(function(x){return x.estado!=='Resuelto';}).length+'</b></div><div class="sc" style="--t:#4ADE80"><small>Leads respondidos</small><b>'+l.filter(function(x){return x.respondido;}).length+' / '+l.length+'</b></div></div>'+
+  '<div class="cd"><div class="sec">Últimas ventas</div>'+rows+'</div>';
+}
+function vTurno(){
+  var turnos={};(S.data.turnos||[]).forEach(function(t){turnos[t.uid]=t;});
+  var ases=(S.data.usuarios||[]).filter(function(u){return u.rol==='asesor'&&u.activo===true;}).sort(function(a,b){return (a.nombre||'').localeCompare(b.nombre||'');});
+  var dentro=0;
+  var rows=ases.map(function(u){
+    var t=turnos[u.id],st,btn='';
+    if(t&&t.sacado){st='<span class="pill p-r">Sacado del turno</span>';btn='<button class="bt sm" onclick="A.turnoAdmin(\''+u.id+'\',false)">Devolver al turno</button>';}
+    else if(t&&t.activo){dentro++;st='<span class="pill p-o">En turno desde '+hhmm(t.entradaMs)+'</span>';btn='<button class="prim sm amb" onclick="A.turnoAdmin(\''+u.id+'\',true)">Sacar de turno</button>';}
+    else if(t){st='<span class="pill p-n">Salió del turno</span>';}
+    else st='<span class="pill p-n">Sin registrar hoy</span>';
+    return '<div class="row"><b style="flex:1 1 180px">'+esc(u.nombre)+'</b>'+(u.marcas||[]).map(brandPill).join(' ')+st+'<span style="margin-left:auto">'+btn+'</span></div>';
+  }).join('')||'<div class="mu">Aún no hay asesores. Créalos en Personas.</div>';
+  return '<div><h1>Turno de hoy</h1><div class="mu" style="padding-top:4px">Los asesores se ponen en turno desde su panel. Aquí puedes sacarlos si hace falta.</div></div><div class="stats"><div class="sc" style="--t:#4ADE80"><small>En turno ahora</small><b>'+dentro+'</b></div><div class="sc" style="--t:#8B6CF0"><small>Asesores activos</small><b>'+ases.length+'</b></div></div><div class="cd">'+rows+'</div>';
+}
+function vPersonas(){
+  var us=(S.data.usuarios||[]).slice().sort(function(a,b){return (a.nombre||'').localeCompare(b.nombre||'');});
+  var marcaChecks=function(pref){return Object.keys(BRANDS).map(function(b){return '<label style="display:flex;gap:6px;align-items:center;font-weight:500"><input type="checkbox" style="width:18px;min-height:18px" id="'+pref+b+'"> '+BRANDS[b].n+'</label>';}).join('');};
+  var list=us.map(function(u){
+    return '<div class="item" style="border-left-color:'+(u.activo?'var(--vio)':'var(--mu)')+'"><div class="hd"><b>'+esc(u.nombre)+'</b><span class="mu">'+esc(u.email)+'</span><span class="rt"><span class="pill p-v">'+esc(ROLES[u.rol]||u.rol)+'</span><span class="pill '+(u.activo?'p-o':'p-n')+'">'+(u.activo?'Activo':'Inactivo')+'</span></span></div>'+
+    '<div class="fl" style="align-items:center">'+Object.keys(BRANDS).map(function(b){var on=(u.marcas||[]).indexOf(b)>=0;return '<button class="cp'+(on?' on':'')+'" onclick="A.toggleMarca(\''+u.id+'\',\''+b+'\')">'+BRANDS[b].n+'</button>';}).join('')+
+    '<button class="bt sm" onclick="A.toggleActivo(\''+u.id+'\','+(!u.activo)+')">'+(u.activo?'Desactivar':'Activar')+'</button></div></div>';}).join('')||'<div class="mu">Todavía no hay personas.</div>';
+  return '<div><h1>Personas</h1><div class="mu" style="padding-top:4px">Crea accesos y decide en qué marcas trabaja cada quien. Puedes cambiarlo cuando quieras.</div></div>'+
+  '<div class="cd"><div class="sec">Agregar persona</div><div class="g"><div class="f"><label for="n-nom">Nombre (igual que en el CRG)</label><input id="n-nom" type="text" placeholder="Ej. Gabriela sanchez infot"></div>'+
+  '<div class="f"><label for="n-mail">Correo</label><input id="n-mail" type="email" placeholder="correo@ejemplo.com"></div><div class="f"><label for="n-pass">Clave temporal (mín. 6)</label><input id="n-pass" type="text" placeholder="Ej. Cambiar123"></div>'+
+  '<div class="f"><label for="n-rol">Rol</label><select id="n-rol">'+Object.keys(ROLES).map(function(r){return '<option value="'+r+'">'+ROLES[r]+'</option>';}).join('')+'</select></div></div>'+
+  '<div class="fl" style="gap:18px">'+marcaChecks('n-m-')+'</div><div class="ft"><span class="mu">Usa el nombre exacto que ya tiene en el CRG para no romper las ventas anteriores.</span><button class="prim" onclick="A.crear()">Crear acceso</button></div></div>'+
+  '<div class="sec">Equipo</div>'+list;
+}
+
+/* ====== acciones (expuestas al HTML) ====== */
+var A=window.A={};
+A.go=go;
+A.out=function(){S.authErr='';auth.signOut();};
+A.login=function(){
+  var e=$('lg-e').value.trim(),p=$('lg-p').value;
+  if(!e||!p){S.authErr='Escribe tu correo y tu clave.';render();return;}
+  S.authErr='';$('lg-b').disabled=true;
+  auth.signInWithEmailAndPassword(e,p).catch(function(x){S.authErr=errMsg(x);render();});
+};
+A.brand=function(b){F.brand=b;F.nota=$('v-nota')?$('v-nota').value:F.nota;render();};
+A.nota=function(v){F.nota=v;$('v-dup').innerHTML=dupNota()?'<div class="al w">La nota fina '+esc(v)+' ya está registrada. Revisa el número antes de guardar.</div>':'';};
+A.calc=function(){F.cant=$('v-cant').value;F.precio=$('v-precio').value;$('v-total').textContent=money(num(F.cant)*num(F.precio));};
+A.fillSuc=function(){var b=F.brand,sel=$('v-suc');if(!sel)return;sucursales(b).then(function(l){var s=$('v-suc');if(!s||F.brand!==b)return;var pv=s.value;s.innerHTML='<option value="">Selecciona…</option>'+l.map(function(x){return '<option>'+esc(x)+'</option>';}).join('');if(pv&&l.indexOf(pv)>=0)s.value=pv;else if(F.suc&&l.indexOf(F.suc)>=0)s.value=F.suc;s.onchange=function(){F.suc=s.value;};});};
+A.cancelVenta=function(){F.nota='';F.cant='1';F.precio='';render();};
+A.saveVenta=function(){
+  var nota=$('v-nota').value.trim(),suc=$('v-suc').value,prod=$('v-prod').value.trim(),cant=num($('v-cant').value),precio=num($('v-precio').value);
+  if(!nota||!suc||!prod||cant<=0||precio<=0){S.msg={c:'w',t:'Completa nota fina, sucursal, producto, cantidad y precio.'};render();return;}
+  var total=cant*precio,rev=dupNota()||total>5000||cant>20;
+  var doc={fecha:$('v-fecha').value||hoy(),notaFina:nota,marca:F.brand,sucursal:suc,asesor:nombre(),asesorUid:S.user.uid,producto:prod,cantidad:cant,precio:precio,total:total,canal:$('v-canal').value,observaciones:$('v-obs').value.trim(),porRevisar:rev,estado:'nueva',creadoAt:ts(),creadoMs:Date.now()};
+  $('v-save').disabled=true;
+  db.collection('ventas_asesor').add(doc).then(function(){F.nota='';F.cant='1';F.precio='';S.msg={c:'o',t:'Venta guardada y enviada a tu supervisora. Ya aparece en Mis ventas.'};render();}).catch(function(e){S.msg={c:'e',t:errMsg(e)};render();});
+};
+A.fv=function(b){S.fv=b;render();};
+/* casos */
+A.showCaso=function(v){S.showCaso=v;C={tipo:'Garantía',nota:'',found:null,msg:''};render();};
+A.tipoCaso=function(t){C.tipo=t;render();};
+A.fillSucCaso=function(){var sel=$('c-marca'),s=$('c-suc');if(!sel||!s)return;var b=sel.value;sucursales(b).then(function(l){var s2=$('c-suc');if(!s2)return;var cur=C.found&&C.found.sucursal;s2.innerHTML=l.map(function(x){return '<option'+(x===cur?' selected':'')+'>'+esc(x)+'</option>';}).join('');});};
+A.notaCaso=function(v){
+  C.nota=v;var n=v.trim();if(!n){C.found=null;C.msg='';return;}
+  clearTimeout(A._t);A._t=setTimeout(function(){
+    var own=(S.data.ventas_asesor||[]);
+    var hit=null;
+    Promise.all(marcas().map(function(b){return ventasCRG(b).then(function(l){return {b:b,l:l};});})).then(function(rs){
+      var h=null;
+      rs.forEach(function(r){(r.l||[]).forEach(function(x){if(!h&&String(x.notaFina)===n)h={marca:r.b,sucursal:x.sucursal,producto:x.producto,asesor:x.asesor};});});
+      return h;
+    }).then(function(h){
+      if(!$('c-nota')||$('c-nota').value.trim()!==n)return;
+      C.found=h;C.msg=h?'Venta encontrada: '+h.producto+' ('+(BRANDS[h.marca]?BRANDS[h.marca].n:h.marca)+'). Se completaron marca, sucursal y equipo.':'No encontramos esa nota fina. Puedes llenar los datos a mano.';
+      render();
+      var ms=$('c-marca');if(h&&ms){ms.value=h.marca;A.fillSucCaso();}
+    });
+  },450);
+};
+A.saveCaso=function(){
+  var cli=$('c-cli').value.trim(),eq=$('c-eq').value.trim(),falla=$('c-falla').value.trim();
+  if(!cli||!eq||!falla){S.msg={c:'w',t:'Completa cliente, equipo y falla.'};render();return;}
+  var d=new Date(),yy=String(d.getFullYear()).slice(2)+('0'+(d.getMonth()+1)).slice(-2)+('0'+d.getDate()).slice(-2);
+  var rnd=Math.random().toString(36).slice(2,6).toUpperCase();
+  var doc={folio:(C.tipo==='Garantía'?'GT-':'ST-')+yy+'-'+rnd,tipo:C.tipo,notaFina:$('c-nota').value.trim(),cliente:cli,serial:$('c-ser').value.trim(),equipo:eq,falla:falla,marca:$('c-marca').value,sucursal:$('c-suc').value,asesor:nombre(),asesorUid:S.user.uid,tecnico:'',tecnicoUid:null,estado:'Pendiente',fechaRecibido:hoy(),fechaResuelto:'',fechaEntregado:'',observaciones:'',creadoAt:ts(),creadoMs:Date.now()};
+  db.collection('casos').add(doc).then(function(){S.showCaso=false;S.msg={c:'o',t:'Caso guardado. El técnico lo verá en su Mesa de garantías.'};render();}).catch(function(e){S.msg={c:'e',t:errMsg(e)};render();});
+};
+/* leads: captura */
+function compress(file){return new Promise(function(res,rej){var r=new FileReader();r.onerror=rej;r.onload=function(){var im=new Image();im.onerror=rej;im.onload=function(){var max=900,s=Math.min(1,max/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);c.getContext('2d').drawImage(im,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',0.6));};im.src=r.result;};r.readAsDataURL(file);});}
+A.captura=function(id,inp){
+  var f=inp.files&&inp.files[0];if(!f)return;
+  toast('Subiendo captura…');
+  compress(f).then(function(url){return db.doc('leads/'+id).update({respondido:true,captura:url,respondidoAt:ts()});}).then(function(){toast('Captura guardada. Lead marcado como respondido.');}).catch(function(e){S.msg={c:'e',t:'No se pudo guardar la captura: '+errMsg(e)};render();});
+};
+/* técnico */
+A.ftec=function(f){S.ft=f;render();};
+A.tomar=function(id){db.doc('casos/'+id).update({tecnicoUid:S.user.uid,tecnico:nombre(),actualizadoAt:ts()}).catch(function(e){S.msg={c:'e',t:errMsg(e)};render();});};
+A.estado=function(id,e){var u={estado:e,actualizadoAt:ts()};u.fechaResuelto=e==='Resuelto'?hoy():'';db.doc('casos/'+id).update(u).catch(function(x){S.msg={c:'e',t:errMsg(x)};render();});};
+A.entregar=function(id){db.doc('casos/'+id).update({fechaEntregado:hoy(),actualizadoAt:ts()}).catch(function(x){S.msg={c:'e',t:errMsg(x)};render();});};
+A.obs=function(id){var all=(S.data.casos_mios||[]).concat(S.data.casos_libres||[]);var c=all.filter(function(x){return x.id===id;})[0];var t=window.prompt('Observación del caso:',(c&&c.observaciones)||'');if(t===null)return;db.doc('casos/'+id).update({observaciones:t.trim(),actualizadoAt:ts()}).catch(function(x){S.msg={c:'e',t:errMsg(x)};render();});};
+/* turno */
+A.entrarTurno=function(){
+  var m=marcas();if(!m.length){S.msg={c:'w',t:'Tu usuario no tiene marcas asignadas. Avísale a tu supervisora.'};render();return;}
+  var id=hoy()+'_'+S.user.uid;
+  db.doc('turnos/'+id).set({uid:S.user.uid,nombre:nombre(),marcas:m,fecha:hoy(),activo:true,sacado:false,entradaAt:ts(),entradaMs:Date.now()}).then(function(){toast('Estás en turno. Ya puedes recibir leads.');}).catch(function(e){S.msg={c:'e',t:errMsg(e)};render();});
+};
+A.salirTurno=function(){db.doc('turnos/'+hoy()+'_'+S.user.uid).update({activo:false,salidaAt:ts(),salidaMs:Date.now()}).catch(function(e){S.msg={c:'e',t:errMsg(e)};render();});};
+A.turnoAdmin=function(uid,sacar){
+  var u={sacado:!!sacar};if(sacar)u.activo=false;else{u.activo=true;}
+  db.doc('turnos/'+hoy()+'_'+uid).update(u).catch(function(e){S.msg={c:'e',t:errMsg(e)};render();});
+};
+/* asignadora */
+A.pmarca=function(b){P.marca=b;render();};
+A.ptext=function(v){P.text=v;clearTimeout(A._p);A._p=setTimeout(render,350);};
+A.registrar=function(){
+  var marca=selMarca(),ases=enTurnoDe(marca);
+  var pl=plan(parseLeads(P.text),ases,S.data.leads);
+  if(!pl.length||!ases.length)return;
+  var batch=db.batch();
+  pl.forEach(function(x){var ref=db.collection('leads').doc();batch.set(ref,{marca:marca,nombre:x.b.nombre||'',telefono:x.b.telefono||'',tipo:x.b.tipo||'',equipo:x.b.equipo||'',uso:x.b.uso||'',obs:x.b.obs||'',asesor:x.a.nombre,asesorUid:x.a.id,fecha:hoy(),respondido:false,captura:'',asignadoPor:nombre(),creadoAt:ts(),creadoMs:Date.now()});});
+  batch.commit().then(function(){P.text='';S.msg={c:'o',t:pl.length+' lead'+(pl.length>1?'s':'')+' registrado'+(pl.length>1?'s':'')+' y asignado'+(pl.length>1?'s':'')+'.'};render();}).catch(function(e){S.msg={c:'e',t:errMsg(e)};render();});
+};
+A.reasignar=function(id,uid){if(!uid)return;var t=(S.data.turnos||[]).filter(function(x){return x.uid===uid;})[0];if(!t)return;db.doc('leads/'+id).update({asesorUid:t.uid,asesor:t.nombre}).catch(function(e){S.msg={c:'e',t:errMsg(e)};render();});};
+/* supervisora: personas */
+A.crear=function(){
+  var nom=$('n-nom').value.trim(),mail=$('n-mail').value.trim(),pass=$('n-pass').value,rol=$('n-rol').value;
+  var ms=Object.keys(BRANDS).filter(function(b){return $('n-m-'+b).checked;});
+  if(!nom||!mail||pass.length<6){S.msg={c:'w',t:'Escribe nombre, correo y una clave de al menos 6 caracteres.'};render();return;}
+  var sec;try{sec=firebase.app('sec');}catch(e){sec=firebase.initializeApp(FB_CONFIG,'sec');}
+  sec.auth().createUserWithEmailAndPassword(mail,pass).then(function(cred){
+    var uid=cred.user.uid;
+    return db.doc('usuarios/'+uid).set({nombre:nom,email:mail.toLowerCase(),rol:rol,marcas:ms,activo:true,creadoAt:ts()}).then(function(){return sec.auth().signOut();}).then(function(){S.msg={c:'o',t:'Acceso creado para '+nom+'. Pásale su correo y la clave temporal.'};render();});
+  }).catch(function(e){S.msg={c:'e',t:errMsg(e)};render();});
+};
+A.toggleMarca=function(uid,b){var u=(S.data.usuarios||[]).filter(function(x){return x.id===uid;})[0];if(!u)return;var m=(u.marcas||[]).slice(),i=m.indexOf(b);if(i>=0)m.splice(i,1);else m.push(b);db.doc('usuarios/'+uid).update({marcas:m}).catch(function(e){S.msg={c:'e',t:errMsg(e)};render();});};
+A.toggleActivo=function(uid,v){db.doc('usuarios/'+uid).update({activo:v}).catch(function(e){S.msg={c:'e',t:errMsg(e)};render();});};
+})();
+</script>
+</body>
+</html>
