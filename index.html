@@ -82,6 +82,7 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--vio);outline-off
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 (function(){
 "use strict";
@@ -95,7 +96,7 @@ var NAV={
   asesor:[['venta','Registrar venta'],['ventas','Mis ventas'],['casos','Garantías'],['leads','Mis leads']],
   tecnico:[['tcasos','Casos']],
   asignadora:[['asignar','Asignar leads']],
-  admin:[['resumen','Resumen'],['turno','Turno de hoy'],['personas','Personas']]
+  admin:[['resumen','Resumen'],['turno','Turno de hoy'],['personas','Personas'],['importar','Importar']]
 };
 
 firebase.initializeApp(FB_CONFIG);
@@ -180,6 +181,7 @@ function go(view){
   if(S.role==='admin'){
     if(view==='resumen'){sub('ventas_asesor',db.collection('ventas_asesor'));sub('casos',db.collection('casos'));sub('leads',db.collection('leads'));}
     if(view==='personas')sub('usuarios',db.collection('usuarios'));
+    if(view==='importar'){sub('usuarios',db.collection('usuarios'));sub('ventas_asesor',db.collection('ventas_asesor'));sub('casos',db.collection('casos'));}
     if(view==='turno'){sub('turnos',db.collection('turnos').where('fecha','==',hoy()));sub('usuarios',db.collection('usuarios'));}
   }
   render();
@@ -230,6 +232,7 @@ function viewHTML(){
   if(v==='resumen')return vResumen();
   if(v==='personas')return vPersonas();
   if(v==='turno')return vTurno();
+  if(v==='importar')return vImportar();
   return '';
 }
 function after(){
@@ -241,14 +244,13 @@ function after(){
 /* ====== ASESOR: registrar venta ====== */
 var F={brand:null,nota:'',cant:'1',precio:'',suc:''};
 function vVenta(){
-  var m=marcas();
-  if(!m.length)return '<h1>Registrar venta</h1><div class="al w">Tu usuario no tiene marcas asignadas. Avísale a tu supervisora.</div>';
-  if(!F.brand||m.indexOf(F.brand)<0)F.brand=m[0];
+  var m=Object.keys(BRANDS); /* el asesor puede vender en cualquier marca */
+  if(!F.brand||m.indexOf(F.brand)<0)F.brand=marcas()[0]||m[0];
   var chips=m.map(function(b){return '<button class="ch'+(F.brand===b?' on':'')+'" style="--d:'+(BRANDS[b]?BRANDS[b].color:'#8B6CF0')+'" onclick="A.brand(\''+b+'\')">'+esc((BRANDS[b]||{n:b}).n)+'</button>';}).join('');
   var dup=dupNota();
   var total=num(F.cant)*num(F.precio);
   return '<div><h1>Registrar venta</h1><div class="mu" style="padding-top:4px">Completa los datos y guarda. La venta le llega directo a tu supervisora.</div></div>'+
-  '<div class="cd"><div class="sec">1 · Marca</div><div class="g">'+chips+'</div><div class="sec">2 · Datos de la venta</div><div class="g">'+
+  '<div class="cd"><div class="sec">1 · Marca donde se hizo la venta</div><div class="g">'+chips+'</div><div class="sec">2 · Datos de la venta</div><div class="g">'+
   '<div class="f"><label for="v-fecha">Fecha</label><input id="v-fecha" type="date" value="'+hoy()+'"></div>'+
   '<div class="f"><label for="v-nota">N° nota fina</label><input id="v-nota" type="text" inputmode="numeric" placeholder="Ej. 1555" value="'+esc(F.nota)+'" oninput="A.nota(this.value)"></div>'+
   '<div class="f"><label for="v-suc">Sucursal</label><select id="v-suc"><option value="">Cargando…</option></select></div>'+
@@ -280,7 +282,7 @@ function vMisVentas(){
 /* ====== ASESOR: garantías ====== */
 var C={tipo:'Garantía',nota:'',found:null,msg:''};
 function vCasosAsesor(){
-  var m=marcas();
+  var m=Object.keys(BRANDS);
   var list=(S.data.casos||[]).slice().sort(function(a,b){return (b.fechaRecibido||'').localeCompare(a.fechaRecibido||'');});
   var abiertos=list.filter(function(c){return c.estado!=='Resuelto';}).length;
   var form='';
@@ -392,6 +394,92 @@ function vAsignar(){
   '<div class="sec">Leads registrados</div><div class="cd">'+hist+'</div>';
 }
 
+
+/* ====== SUPERVISORA: importar ventas y garantías existentes ====== */
+var I={tipo:'ventas',marca:'tekio',rows:null,name:''};
+function hk(s){return norm(s).replace(/[^a-z0-9]+/g,' ').trim();}
+var ALIAS={
+  fecha:['fecha','fecha venta','fecha de venta'],
+  notaFina:['nota fina','nota','n nota fina','n nota','nro nota','numero nota','factura','n factura'],
+  marca:['marca','empresa'],sucursal:['sucursal','local','tienda'],asesor:['asesor','asesora','vendedor','vendedora'],
+  observaciones:['observaciones','observacion','comentarios','notas'],
+  producto:['producto','equipo','articulo','descripcion','item'],cantidad:['cantidad','cant','unidades'],
+  precio:['precio','precio unitario','precio unit','pvp'],total:['total','monto','importe','total venta'],canal:['canal','origen','medio'],
+  folio:['folio','n caso','caso'],tipo:['tipo','tipo de caso'],cliente:['cliente','nombre cliente','nombre'],serial:['serial','serie','n serie'],
+  falla:['falla','falla reportada','problema','motivo'],estado:['estado','status'],tecnico:['tecnico'],
+  fechaRecibido:['fecha recibido','recibido','fecha ingreso','ingreso','fecha'],fechaResuelto:['fecha resuelto','resuelto'],fechaEntregado:['fecha entregado','entregado']
+};
+var ALIAS_EQ={casos:['equipo','modelo','producto']};
+function colMap(row,fields){var hs=Object.keys(row),m={};
+  fields.forEach(function(f){var al=(f==='equipo'&&I.tipo==='casos')?ALIAS_EQ.casos:ALIAS[f];
+    for(var i=0;i<al.length&&!m[f];i++){for(var j=0;j<hs.length;j++){if(hk(hs[j])===al[i]){m[f]=hs[j];break;}}}});
+  return m;}
+function isoD(v){
+  if(v===''||v==null)return '';
+  var d=null;
+  if(v instanceof Date)d=new Date(v.getTime()+12*3600*1000);
+  else if(typeof v==='number'&&v>20000){var u=new Date(Math.round((v-25569)*86400000));return u.getUTCFullYear()+'-'+('0'+(u.getUTCMonth()+1)).slice(-2)+'-'+('0'+u.getUTCDate()).slice(-2);}
+  else{var t=String(v).trim(),m=t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if(m)return m[1]+'-'+('0'+m[2]).slice(-2)+'-'+('0'+m[3]).slice(-2);
+    m=t.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})/);
+    if(m){var y=m[3].length===2?'20'+m[3]:m[3];return y+'-'+('0'+m[2]).slice(-2)+'-'+('0'+m[1]).slice(-2);}
+    return '';}
+  return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);}
+function marcaDe(v){var x=norm(v).replace(/[^a-z]/g,'');if(x.indexOf('tekio')>=0)return 'tekio';if(x.indexOf('infot')>=0)return 'infot';if(x.indexOf('mega')>=0)return 'megalaptop';return '';}
+function impBuild(){
+  var rows=I.rows||[],out={ok:[],dup:0,bad:0,sinAsesor:{},total:rows.length};
+  if(!rows.length)return out;
+  var vent=I.tipo==='ventas';
+  var cm=colMap(rows[0],vent?['fecha','notaFina','marca','sucursal','asesor','producto','cantidad','precio','total','canal','observaciones']:['folio','tipo','notaFina','cliente','serial','equipo','falla','marca','sucursal','asesor','estado','tecnico','fechaRecibido','fechaResuelto','fechaEntregado','observaciones']);
+  out.cols=cm;
+  var us={};(S.data.usuarios||[]).forEach(function(u){if(u.rol==='asesor')us[norm(u.nombre)]=u.id;});
+  var seen={};
+  (vent?(S.data.ventas_asesor||[]):(S.data.casos||[])).forEach(function(x){seen[vent?x.marca+'|'+x.notaFina:(x.folio||'')+'|'+x.notaFina+'|'+norm(x.serial)+'|'+norm(x.equipo)]=1;});
+  rows.forEach(function(r){
+    var g=function(f){return cm[f]?r[cm[f]]:'';},tx=function(f){return String(g(f)==null?'':g(f)).trim();};
+    var marca=marcaDe(g('marca'))||I.marca,as=tx('asesor'),uid=us[norm(as)]||'';
+    if(as&&!uid)out.sinAsesor[as]=1;
+    var d,key;
+    if(vent){
+      var cant=num(g('cantidad'))||1,pr=num(g('precio')),tot=num(g('total'));
+      if(!pr&&tot)pr=tot/cant;if(!tot)tot=pr*cant;
+      if(!tx('notaFina')||tot<=0||!tx('producto')){out.bad++;return;}
+      key=marca+'|'+tx('notaFina');
+      d={fecha:isoD(g('fecha'))||hoy(),notaFina:tx('notaFina'),marca:marca,sucursal:tx('sucursal'),asesor:as,asesorUid:uid,producto:tx('producto'),cantidad:cant,precio:pr,total:tot,canal:tx('canal')||'Otro',observaciones:tx('observaciones'),porRevisar:false,estado:'nueva'};
+    }else{
+      var eq=tx('equipo'),tp=norm(tx('tipo')).indexOf('serv')>=0?'Servicio técnico':'Garantía',st=norm(tx('estado'));
+      var est=(st.indexOf('resuel')>=0||st.indexOf('entreg')>=0)?'Resuelto':(st.indexOf('proces')>=0||st.indexOf('revis')>=0)?'En proceso':'Pendiente';
+      if(!eq){out.bad++;return;}
+      var yy=hoy().replace(/-/g,'').slice(2),fol=tx('folio')||((tp==='Garantía'?'GT-':'ST-')+yy+'-'+Math.random().toString(36).slice(2,6).toUpperCase());
+      key=(tx('folio')||'')+'|'+tx('notaFina')+'|'+norm(tx('serial'))+'|'+norm(eq);
+      d={folio:fol,tipo:tp,notaFina:tx('notaFina'),cliente:tx('cliente'),serial:tx('serial'),equipo:eq,falla:tx('falla'),marca:marca,sucursal:tx('sucursal'),asesor:as,asesorUid:uid,tecnico:tx('tecnico'),tecnicoUid:est==='Resuelto'?'importado':null,estado:est,fechaRecibido:isoD(g('fechaRecibido'))||hoy(),fechaResuelto:isoD(g('fechaResuelto'))||(est==='Resuelto'?hoy():''),fechaEntregado:isoD(g('fechaEntregado')),observaciones:tx('observaciones')};
+    }
+    if(seen[key]){out.dup++;return;}
+    seen[key]=1;d.importado=true;d.creadoAt=ts();d.creadoMs=Date.now();out.ok.push(d);
+  });
+  return out;}
+function vImportar(){
+  var vent=I.tipo==='ventas';
+  var tipos=[['ventas','Ventas'],['casos','Garantías / servicio técnico']].map(function(t){return '<button class="ch'+(I.tipo===t[0]?' on':'')+'" onclick="A.impTipo(\''+t[0]+'\')">'+t[1]+'</button>';}).join('');
+  var marcaSel=Object.keys(BRANDS).map(function(b){return '<button class="ch'+(I.marca===b?' on':'')+'" style="--d:'+BRANDS[b].color+'" onclick="A.impMarca(\''+b+'\')">'+BRANDS[b].n+'</button>';}).join('');
+  var body='';
+  if(I.rows){
+    var r=impBuild(),names=Object.keys(r.sinAsesor);
+    var cols=Object.keys(r.cols||{}).map(function(k){return k;}).join(', ')||'ninguna';
+    var prev=r.ok.slice(0,6).map(function(x){return '<div class="row">'+brandPill(x.marca)+'<span class="mu" style="flex:0 0 78px">'+fdate(x.fecha||x.fechaRecibido)+'</span><b style="flex:1 1 140px">'+esc(x.asesor||'—')+'</b><span class="mu">N° '+esc(x.notaFina)+' · '+esc(x.producto||x.equipo)+'</span></div>';}).join('');
+    body='<div class="al i">'+esc(I.name)+' · '+r.total+' filas leídas. Columnas reconocidas: '+esc(cols)+'.</div>'+
+    '<div class="stats"><div class="sc" style="--t:#4ADE80"><small>Listas para importar</small><b>'+r.ok.length+'</b></div><div class="sc" style="--t:#F5B63A"><small>Ya existían</small><b>'+r.dup+'</b></div><div class="sc" style="--t:#FF6B6B"><small>Incompletas (se omiten)</small><b>'+r.bad+'</b></div></div>'+
+    (names.length?'<div class="al w">Asesores sin coincidir con una persona del panel (se guardan con su nombre, pero no aparecerán en "Mis ventas" / "Garantías" del asesor): '+esc(names.join(', '))+'</div>':'')+
+    '<div class="cd"><div class="sec">Vista previa</div>'+(prev||'<div class="mu">No hay filas válidas. Revisa los encabezados del archivo.</div>')+
+    '<div class="ft"><span class="mu">Las ya existentes no se duplican.</span><div class="fl"><button class="bt" onclick="A.impLimpiar()">Cancelar</button><button class="prim" onclick="A.impGo()" '+(r.ok.length?'':'disabled')+'>Importar '+r.ok.length+'</button></div></div></div>';
+  }
+  return '<div><h1>Importar</h1><div class="mu" style="padding-top:4px">Pasa al panel lo que ya tienes en Excel o CSV. Usa la primera hoja y la primera fila como encabezados.</div></div>'+
+  '<div class="cd"><div class="sec">1 · Qué vas a importar</div><div class="g">'+tipos+'</div>'+
+  '<div class="sec">2 · Marca por defecto (si la fila no trae columna Marca)</div><div class="g">'+marcaSel+'</div>'+
+  '<div class="sec">3 · Archivo</div><div class="f full"><input type="file" accept=".xlsx,.xls,.csv" onchange="A.impFile(this)"></div>'+
+  '<div class="mu" style="padding-top:8px">'+(vent?'Columnas: Fecha, N° nota fina, Marca, Sucursal, Asesor, Producto, Cantidad, Precio, Total, Canal, Observaciones.':'Columnas: Folio, Tipo, N° nota fina, Cliente, Equipo, Serial, Falla, Marca, Sucursal, Asesor, Estado, Fecha recibido, Fecha resuelto, Fecha entregado.')+'</div></div>'+body;
+}
+
 /* ====== SUPERVISORA ====== */
 function vResumen(){
   var v=S.data.ventas_asesor||[],c=S.data.casos||[],l=S.data.leads||[];
@@ -456,6 +544,23 @@ A.saveVenta=function(){
   db.collection('ventas_asesor').add(doc).then(function(){F.nota='';F.cant='1';F.precio='';S.msg={c:'o',t:'Venta guardada y enviada a tu supervisora. Ya aparece en Mis ventas.'};render();}).catch(function(e){S.msg={c:'e',t:errMsg(e)};render();});
 };
 A.fv=function(b){S.fv=b;render();};
+/* importar */
+A.impTipo=function(t){I.tipo=t;I.rows=null;render();};
+A.impMarca=function(b){I.marca=b;render();};
+A.impLimpiar=function(){I.rows=null;I.name='';render();};
+A.impFile=function(inp){var f=inp.files&&inp.files[0];if(!f)return;
+  if(!window.XLSX){S.msg={c:'e',t:'No cargó el lector de Excel. Revisa la conexión y recarga la página.'};render();return;}
+  var r=new FileReader();
+  r.onload=function(){try{var wb=XLSX.read(r.result,{type:'array',cellDates:true}),ws=wb.Sheets[wb.SheetNames[0]];
+    I.rows=XLSX.utils.sheet_to_json(ws,{defval:'',raw:true});I.name=f.name+' (hoja "'+wb.SheetNames[0]+'")';S.msg=null;}
+    catch(e){I.rows=null;S.msg={c:'e',t:'No se pudo leer el archivo.'};}render();};
+  r.readAsArrayBuffer(f);};
+A.impGo=function(){
+  var r=impBuild();if(!r.ok.length)return;
+  var col=I.tipo==='ventas'?'ventas_asesor':'casos',p=Promise.resolve();
+  for(var i=0;i<r.ok.length;i+=400){(function(part){p=p.then(function(){var b=db.batch();part.forEach(function(d){b.set(db.collection(col).doc(),d);});return b.commit();});})(r.ok.slice(i,i+400));}
+  p.then(function(){I.rows=null;S.msg={c:'o',t:'Se importaron '+r.ok.length+(I.tipo==='ventas'?' ventas.':' casos.')};render();}).catch(function(e){S.msg={c:'e',t:'La importación se detuvo: '+errMsg(e)};render();});};
+
 /* casos */
 A.showCaso=function(v){S.showCaso=v;C={tipo:'Garantía',nota:'',found:null,msg:''};render();};
 A.tipoCaso=function(t){C.tipo=t;render();};
@@ -465,7 +570,7 @@ A.notaCaso=function(v){
   clearTimeout(A._t);A._t=setTimeout(function(){
     var own=(S.data.ventas_asesor||[]);
     var hit=null;
-    Promise.all(marcas().map(function(b){return ventasCRG(b).then(function(l){return {b:b,l:l};});})).then(function(rs){
+    Promise.all(Object.keys(BRANDS).map(function(b){return ventasCRG(b).then(function(l){return {b:b,l:l};});})).then(function(rs){
       var h=null;
       rs.forEach(function(r){(r.l||[]).forEach(function(x){if(!h&&String(x.notaFina)===n)h={marca:r.b,sucursal:x.sucursal,producto:x.producto,asesor:x.asesor};});});
       return h;
