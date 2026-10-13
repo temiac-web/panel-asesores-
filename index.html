@@ -124,6 +124,7 @@ function errMsg(e){var c=e&&e.code||'';
 
 /* ====== estado ====== */
 var S={user:null,perfil:null,role:null,view:null,data:{},unsubs:{},cache:{},msg:null,ready:false,authErr:''};
+var A=window.A={};
 function sub(name,query,cb){if(S.unsubs[name])S.unsubs[name]();S.unsubs[name]=query.onSnapshot(function(snap){S.data[name]=snap.docs.map(function(d){var o=d.data();o.id=d.id;return o;});cb&&cb();render();},function(e){S.data[name]=[];S.msg={c:'e',t:'No se pudo leer '+name+': '+errMsg(e)};render();});}
 function unsubAll(){Object.keys(S.unsubs).forEach(function(k){S.unsubs[k]();});S.unsubs={};S.data={};}
 function marcas(){return (S.perfil&&S.perfil.marcas)||[];}
@@ -859,7 +860,6 @@ function vPersonas(){
 }
 
 /* ====== acciones (expuestas al HTML) ====== */
-var A=window.A={};
 A.go=go;
 A.out=function(){S.authErr='';auth.signOut();};
 A.login=function(){
