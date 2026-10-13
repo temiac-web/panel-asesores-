@@ -96,7 +96,7 @@ var NAV={
   asesor:[['venta','Registrar venta'],['ventas','Mis ventas'],['casos','Garantías'],['leads','Mis leads']],
   tecnico:[['tcasos','Casos']],
   asignadora:[['asignar','Asignar leads']],
-  admin:[['resumen','Resumen'],['turno','Turno de hoy'],['personas','Personas'],['importar','Importar'],['repetidas','Ventas repetidas']]
+  admin:[['resumen','Resumen'],['turno','Turno de hoy'],['personas','Personas'],['importar','Importar'],['ventasadm','Ventas'],['repetidas','Ventas repetidas']]
 };
 
 firebase.initializeApp(FB_CONFIG);
@@ -183,6 +183,7 @@ function go(view){
   }
   if(S.role==='admin'){
     if(view==='resumen'){sub('ventas_asesor',db.collection('ventas_asesor'));sub('casos',db.collection('casos'));sub('leads',db.collection('leads'));}
+    if(view==='ventasadm'){sub('ventas_asesor',db.collection('ventas_asesor'));sub('usuarios',db.collection('usuarios'));}
     if(view==='repetidas')sub('ventas_asesor',db.collection('ventas_asesor'));
     if(view==='personas')sub('usuarios',db.collection('usuarios'),syncDir);
     if(view==='importar'){sub('usuarios',db.collection('usuarios'));sub('ventas_asesor',db.collection('ventas_asesor'));sub('casos',db.collection('casos'));}
@@ -293,6 +294,7 @@ function viewHTML(){
   if(v==='turno')return vTurno();
   if(v==='importar')return vImportar();
   if(v==='repetidas')return vRepetidas();
+  if(v==='ventasadm')return vVentasAdm();
   return '';
 }
 function after(){
@@ -302,6 +304,7 @@ function after(){
 }
 
 /* ====== ASESOR: registrar venta ====== */
+var MAX_NOTA=2; /* veces que se puede cargar la misma nota en una marca */
 var F={brand:null,nota:'',suc:'',rd:null,saving:false};
 function misMarcas(){return marcas().filter(function(b){return BRANDS[b];});}
 function ventasAll(){var m={};(S.data.ventas_mias||[]).concat(S.data.ventas_marca||[]).forEach(function(v){m[v.id]=v;});return Object.keys(m).map(function(k){return m[k];});}
@@ -380,9 +383,12 @@ function vVenta(){
   '<div class="f"><label for="v-precio">Precio</label><input id="v-precio" type="text" inputmode="decimal" placeholder="$ 0.00" oninput="A.calc()"></div>'+
   '<div class="f"><label for="v-canal">Canal de venta</label><select id="v-canal">'+CANALES.map(function(c){return '<option>'+c+'</option>';}).join('')+'</select></div>'+
   '<div class="f full"><label for="v-obs">Observación (opcional)</label><input id="v-obs" type="text" placeholder="Escribe aquí lo que quieras agregar"></div></div>'+
-  '<div id="v-dup">'+(dup?'<div class="al w">La nota '+esc(F.nota)+' ya está registrada en '+esc((BRANDS[F.brand]||{n:F.brand}).n)+'. Revisa el número antes de guardar.</div>':'')+'</div>'+
+  '<div id="v-dup">'+dupMsg()+'</div>'+
   '<div class="ft"><div class="tt"><small>Total de la venta</small><b id="v-total">$0.00</b></div><button class="prim" id="v-save" onclick="A.saveVenta()"'+(F.saving?' disabled':'')+'>'+(F.saving?'Guardando…':'Guardar venta')+'</button></div></div>';
 }
+function notaCount(){var n=String(F.nota||'').trim();if(!n)return 0;return ventasAll().filter(function(v){return String(v.notaFina)===n&&v.marca===F.brand;}).length;}
+function dupMsg(){var c=notaCount();if(!c)return '';var mk=(BRANDS[F.brand]||{n:F.brand}).n;
+  return '<div class="al '+(c>=MAX_NOTA?'e':'w')+'">'+(c>=MAX_NOTA?'La nota '+esc(F.nota)+' ya está registrada '+c+' veces en '+esc(mk)+': no se puede cargar otra vez.':'La nota '+esc(F.nota)+' ya está registrada en '+esc(mk)+'. Si la guardas de nuevo será la última vez que se permite.')+'</div>';}
 function dupNota(){var n=String(F.nota||'').trim();if(!n)return false;return ventasAll().some(function(v){return String(v.notaFina)===n&&v.marca===F.brand;});}
 function mesAnt(){var d=new Date();d.setDate(1);d.setMonth(d.getMonth()-1);return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2);}
 
@@ -412,6 +418,38 @@ function vMisVentas(){
   return '<div><h1>Mis ventas</h1><div class="mu" style="padding-top:4px">Las ventas de tu marca activa y las que vendiste tú en cualquier marca. Usa «Solo mis ventas» para sacar tu comisión.</div></div>'+
   '<div class="stats">'+cards+'</div><div class="cd"><div class="fl">'+c1+'</div><div class="fl">'+c2+'</div><div class="fl">'+c3+'</div><div>'+rows+'</div></div>';
 }
+function vVentasAdm(){
+  var fm=S.avm||'Todas',q=norm(S.aq||'');
+  var all=(S.data.ventas_asesor||[]).slice().sort(function(a,b){return (b.fecha||'').localeCompare(a.fecha||'')||(b.creadoMs||0)-(a.creadoMs||0);});
+  var lista=all.filter(function(v){return (fm==='Todas'||v.marca===fm)&&(!q||norm([v.notaFina,v.producto,v.asesor,v.cargadoPor,v.sucursal].join(' ')).indexOf(q)>=0);});
+  var total=lista.length;lista=lista.slice(0,150);
+  var ed=S.edit?all.filter(function(x){return x.id===S.edit;})[0]:null,edHTML='';
+  if(ed){
+    var ases=(S.data.usuarios||[]).filter(function(u){return u.rol==='asesor';}).sort(function(a,b){return (a.nombre||'').localeCompare(b.nombre||'');});
+    var vo='<option value="__keep">'+esc(ed.asesor||'—')+' (actual)</option>'+ases.map(function(u){return '<option value="'+esc(u.id)+'">'+esc(u.nombre)+'</option>';}).join('');
+    edHTML='<div class="cd" style="border-color:var(--vio)"><div class="sec">Editar venta · nota '+esc(ed.notaFina)+'</div>'+
+    (ed.estado&&ed.estado!=='nueva'?'<div class="al w">Esta venta ya fue procesada por el CRG. Lo que cambies aquí no se actualiza allá: corrígela también en el CRG.</div>':'')+
+    '<div class="g"><div class="f"><label for="e-fecha">Fecha</label><input id="e-fecha" type="date" value="'+esc(ed.fecha||'')+'"></div>'+
+    '<div class="f"><label for="e-nota">N° de nota</label><input id="e-nota" type="text" value="'+esc(ed.notaFina)+'"></div>'+
+    '<div class="f"><label for="e-marca">Marca</label><select id="e-marca">'+Object.keys(BRANDS).map(function(b){return '<option value="'+b+'"'+(ed.marca===b?' selected':'')+'>'+BRANDS[b].n+'</option>';}).join('')+'</select></div>'+
+    '<div class="f"><label for="e-suc">Sucursal</label><input id="e-suc" type="text" value="'+esc(ed.sucursal||'')+'"></div>'+
+    '<div class="f"><label for="e-vend">Asesora que vendió</label><select id="e-vend">'+vo+'</select></div>'+
+    '<div class="f"><label for="e-canal">Canal</label><select id="e-canal">'+CANALES.map(function(c){return '<option'+(ed.canal===c?' selected':'')+'>'+c+'</option>';}).join('')+'</select></div>'+
+    '<div class="f full"><label for="e-prod">Producto</label><input id="e-prod" type="text" value="'+esc(ed.producto||'')+'"></div>'+
+    '<div class="f"><label for="e-precio">Precio</label><input id="e-precio" type="text" inputmode="decimal" value="'+esc(ed.precio!=null?ed.precio:'')+'"></div>'+
+    '<div class="f full"><label for="e-obs">Observación</label><input id="e-obs" type="text" value="'+esc(ed.observaciones||'')+'"></div></div>'+
+    '<div class="fl"><button class="prim" onclick="A.guardarEd()">Guardar cambios</button><button class="bt" onclick="A.cancelEd()">Cancelar</button></div></div>';
+  }
+  var chips=[['Todas','Todas las marcas']].concat(Object.keys(BRANDS).map(function(b){return [b,BRANDS[b].n];})).map(function(x){return '<button class="cp'+(fm===x[0]?' on':'')+'" onclick="A.avm(\''+x[0]+'\')">'+x[1]+'</button>';}).join('');
+  var rows=lista.map(function(v){return '<div class="row"><span class="mu" style="flex:0 0 78px">'+fdate(v.fecha)+'</span><span class="mu" style="flex:0 0 74px">N° '+esc(v.notaFina)+'</span>'+brandPill(v.marca)+
+    '<span style="flex:1 1 180px;font-weight:600">'+esc(v.producto)+(v.sucursal?' <span class="mu" style="font-weight:400">· '+esc(v.sucursal)+'</span>':'')+'</span>'+
+    '<span class="mu" style="flex:0 0 150px">Vendió '+esc(v.asesor||'—')+(v.cargadoPor&&v.cargadoPor!==v.asesor?'<br>Cargó '+esc(v.cargadoPor):'')+'</span>'+
+    (v.porRevisar?'<span class="pill p-w">Por revisar</span>':'')+'<b style="flex:0 0 80px;text-align:right;color:var(--ok)">'+money(v.total)+'</b>'+
+    '<span class="rt"><button class="bt sm" onclick="A.editarV(\''+v.id+'\')">Editar</button><button class="bt sm" onclick="A.borrarV(\''+v.id+'\')">Borrar</button></span></div>';}).join('')||'<div class="mu" style="padding:12px 0">No hay ventas con estos filtros.</div>';
+  return '<div><h1>Ventas</h1><div class="mu" style="padding-top:4px">Todas las ventas que cargan los asesores. Aquí puedes corregirlas o borrarlas.</div></div>'+edHTML+
+  '<div class="cd"><div class="f"><label for="a-q">Buscar (nota, producto, asesora, sucursal)</label><input id="a-q" type="text" value="'+esc(S.aq||'')+'" oninput="A.aq(this.value)"></div><div class="fl">'+chips+'</div>'+
+  '<div class="mu">'+total+' venta'+(total===1?'':'s')+(total>150?' (se muestran las 150 más recientes: usa el buscador)':'')+'</div><div>'+rows+'</div></div>';
+}
 function gruposRep(){
   var g={};(S.data.ventas_asesor||[]).forEach(function(v){var k=[v.marca,String(v.notaFina).trim(),Number(v.total)||0].join('|');(g[k]=g[k]||[]).push(v);});
   return Object.keys(g).filter(function(k){return g[k].length>1;}).map(function(k){
@@ -426,6 +464,24 @@ function vRepetidas(){
     '<div class="bs"><button class="prim sm" onclick="A.limpiarRep(\''+esc(g.k)+'\')">Borrar '+g.extra.length+' copia'+(g.extra.length>1?'s':'')+' y dejar 1</button></div></div>';}).join('')||'<div class="al o">No hay ventas repetidas.</div>';
   return '<div><h1>Ventas repetidas</h1><div class="mu" style="padding-top:4px">Ventas con la misma marca, nota y monto. Se conserva la que ya procesó el CRG o, si no, la más antigua.</div></div>'+rows;
 }
+A.avm=function(v){S.avm=v;render();};
+A.aq=function(v){S.aq=v;render();};
+A.editarV=function(id){S.edit=null;render();S.edit=id;render();window.scrollTo(0,0);};
+A.cancelEd=function(){S.edit=null;render();};
+A.borrarV=function(id){
+  var v=(S.data.ventas_asesor||[]).filter(function(x){return x.id===id;})[0];if(!v)return;
+  if(!window.confirm('¿Borrar la venta nota '+v.notaFina+' ('+(v.producto||'')+', '+money(v.total)+')? No se puede deshacer.'))return;
+  db.doc('ventas_asesor/'+id).delete().then(function(){S.msg={c:'o',t:'Venta borrada.'};render();}).catch(function(e){S.msg={c:'e',t:errMsg(e)};render();});
+};
+A.guardarEd=function(){
+  var v=(S.data.ventas_asesor||[]).filter(function(x){return x.id===S.edit;})[0];if(!v)return;
+  var nota=$('e-nota').value.trim(),prod=$('e-prod').value.trim(),precio=num($('e-precio').value),cant=Number(v.cantidad)||1;
+  if(!nota||!prod||precio<=0){S.msg={c:'w',t:'Completa nota, producto y un precio mayor a cero.'};render();return;}
+  var upd={fecha:$('e-fecha').value||v.fecha,notaFina:nota,marca:$('e-marca').value,sucursal:$('e-suc').value.trim(),producto:prod,precio:precio,total:precio*cant,canal:$('e-canal').value,observaciones:$('e-obs').value.trim(),porRevisar:false,editadoAt:ts()};
+  var vs=$('e-vend').value;
+  if(vs!=='__keep'){var u=(S.data.usuarios||[]).filter(function(x){return x.id===vs;})[0];if(u){upd.asesor=u.nombre;upd.asesorUid=u.id;}}
+  db.doc('ventas_asesor/'+v.id).update(upd).then(function(){S.edit=null;S.msg={c:'o',t:'Venta actualizada.'};render();}).catch(function(e){S.msg={c:'e',t:errMsg(e)};render();});
+};
 A.limpiarRep=function(k){
   var g=gruposRep().filter(function(x){return x.k===k;})[0];if(!g)return;
   if(!window.confirm('Se borrarán '+g.extra.length+' copia(s) de la nota '+g.keep.notaFina+' y se dejará 1. ¿Continuar?'))return;
@@ -813,7 +869,7 @@ A.login=function(){
   auth.signInWithEmailAndPassword(e,p).catch(function(x){S.authErr=errMsg(x);render();});
 };
 A.marca=function(b){F.brand=b;F.suc='';A.fillSuc(true);A.nota($('v-nota')?$('v-nota').value:F.nota);};
-A.nota=function(v){F.nota=v;var el=$('v-dup');if(el)el.innerHTML=dupNota()?'<div class="al w">La nota '+esc(v)+' ya está registrada en '+esc((BRANDS[F.brand]||{n:F.brand}).n)+'. Revisa el número antes de guardar.</div>':'';};
+A.nota=function(v){F.nota=v;var el=$('v-dup');if(el)el.innerHTML=dupMsg();};
 A.calc=function(){var t=$('v-total');if(t)t.textContent=money(num($('v-precio').value));};
 A.fillSuc=function(force){var b=F.brand,sel=$('v-suc');if(!sel)return;sucursales(b).then(function(l){var s=$('v-suc');if(!s||F.brand!==b)return;var pv=force?'':s.value;s.innerHTML='<option value="">Selecciona…</option>'+l.map(function(x){return '<option>'+esc(x)+'</option>';}).join('');if(pv&&l.indexOf(pv)>=0)s.value=pv;else if(F.suc&&l.indexOf(F.suc)>=0)s.value=F.suc;s.onchange=function(){F.suc=s.value;};});};
 A.leer=function(){
@@ -851,16 +907,22 @@ A.saveVenta=function(){
   var d=(vsel&&vsel!=='__otro')?(asesoresDir().filter(function(x){return x.id===vsel;})[0]||null):null;
   var vname=d?d.nombre:(vsel==='__otro'?vtxt:'');
   if(!nota||!suc||!prod||precio<=0||!vname){S.msg={c:'w',t:'Completa nota, sucursal, quién vendió, producto y precio.'};render();return;}
+  var nclean=nota.replace(/[^A-Za-z0-9\-]/g,'');
+  if(!nclean){S.msg={c:'w',t:'Revisa el número de nota.'};render();return;}
+  var exs=ventasAll().filter(function(v){return String(v.notaFina)===nota&&v.marca===F.brand;});
+  var base=F.brand+'_'+nclean,copia=0;
+  for(var ci=1;ci<=MAX_NOTA&&!copia;ci++){if(!exs.some(function(v){return v.id===base+'_'+ci;}))copia=ci;}
+  if(exs.length>=MAX_NOTA||!copia){S.msg={c:'e',t:'La nota '+nota+' ya está registrada '+exs.length+' veces en '+(BRANDS[F.brand]||{n:F.brand}).n+'. No se puede cargar más. Habla con tu supervisora.'};render();return;}
   if(dupNota()&&!window.confirm('La nota '+nota+' ya está registrada en '+(BRANDS[F.brand]||{n:F.brand}).n+'. ¿Seguro que quieres guardarla otra vez?'))return;
   var rev=dupNota()||precio>5000||!d;
   var doc={fecha:$('v-fecha').value||hoy(),notaFina:nota,marca:F.brand,sucursal:suc,asesor:vname,asesorUid:d?d.id:'',cargadoPorUid:S.user.uid,cargadoPor:nombre(),producto:prod,cantidad:1,precio:precio,total:precio,canal:$('v-canal').value,observaciones:$('v-obs').value.trim(),porRevisar:rev,estado:'nueva',creadoAt:ts(),creadoMs:Date.now()};
   F.saving=true;$('v-save').disabled=true;$('v-save').textContent='Guardando…';
-  db.collection('ventas_asesor').add(doc).then(function(){
+  db.collection('ventas_asesor').doc(base+'_'+copia).set(doc).then(function(){
     F.saving=false;
     ['v-txt','v-nota','v-prod','v-precio','v-obs','v-vend-otro'].forEach(function(k){if($(k))$(k).value='';});if($('v-vend'))$('v-vend').value='';
     F.nota='';F.rd=null;
     S.msg={c:'o',t:'Venta guardada y enviada a tu supervisora.'+(d&&d.id!==S.user.uid?' Ya aparece en las ventas de '+vname+'.':'')};render();
-  }).catch(function(e){F.saving=false;S.msg={c:'e',t:errMsg(e)};render();});
+  }).catch(function(e){F.saving=false;S.msg={c:'e',t:(e&&e.code==='permission-denied')?'No se pudo guardar: esa nota ya fue registrada por otra persona, o no tienes activa esa marca.':errMsg(e)};render();});
 };
 A.fs=function(v){S.fs=v;render();};
 A.fsc=function(v){S.fsc=v;render();};
