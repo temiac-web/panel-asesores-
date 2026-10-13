@@ -740,7 +740,7 @@ var ALIAS={
   observaciones:['observaciones','observacion','comentarios','notas'],
   producto:['producto','equipo','articulo','descripcion','item'],cantidad:['cantidad','cant','unidades'],
   precio:['precio','precio unitario','precio unit','pvp'],total:['total','monto','importe','total venta'],canal:['canal','origen','medio'],
-  folio:['folio','n caso','caso'],tipo:['tipo','tipo de caso'],cliente:['cliente','nombre cliente','nombre'],serial:['serial','serie','n serie'],
+  folio:['folio','n caso','caso'],telefono:['telefono','tel','celular','whatsapp','numero de telefono'],tipo:['tipo','tipo de caso'],cliente:['cliente','nombre cliente','nombre'],serial:['serial','serie','n serie'],
   falla:['falla','falla reportada','problema','motivo'],estado:['estado','status'],tecnico:['tecnico'],
   fechaRecibido:['fecha recibido','recibido','fecha ingreso','ingreso','fecha'],fechaResuelto:['fecha resuelto','resuelto'],fechaEntregado:['fecha entregado','entregado']
 };
@@ -765,7 +765,7 @@ function impBuild(){
   var rows=I.rows||[],out={ok:[],dup:0,bad:0,sinAsesor:{},total:rows.length};
   if(!rows.length)return out;
   var vent=I.tipo==='ventas';
-  var cm=colMap(rows[0],vent?['fecha','notaFina','marca','sucursal','asesor','producto','cantidad','precio','total','canal','observaciones']:['folio','tipo','notaFina','cliente','serial','equipo','falla','marca','sucursal','asesor','estado','tecnico','fechaRecibido','fechaResuelto','fechaEntregado','observaciones']);
+  var cm=colMap(rows[0],vent?['fecha','notaFina','marca','sucursal','asesor','producto','cantidad','precio','total','canal','observaciones']:['folio','tipo','notaFina','cliente','telefono','serial','equipo','falla','marca','sucursal','asesor','estado','tecnico','fechaRecibido','fechaResuelto','fechaEntregado','observaciones']);
   out.cols=cm;
   var us={};(S.data.usuarios||[]).forEach(function(u){if(u.rol==='asesor')us[norm(u.nombre)]=u.id;});
   var seen={};
@@ -787,7 +787,7 @@ function impBuild(){
       if(!eq){out.bad++;return;}
       var yy=hoy().replace(/-/g,'').slice(2),fol=tx('folio')||((tp==='Garantía'?'GT-':'ST-')+yy+'-'+Math.random().toString(36).slice(2,6).toUpperCase());
       key=(tx('folio')||'')+'|'+tx('notaFina')+'|'+norm(tx('serial'))+'|'+norm(eq);
-      d={folio:fol,tipo:tp,notaFina:tx('notaFina'),cliente:tx('cliente'),serial:tx('serial'),equipo:eq,falla:tx('falla'),marca:marca,sucursal:tx('sucursal'),asesor:as,asesorUid:uid,tecnico:tx('tecnico'),tecnicoUid:est==='Resuelto'?'importado':null,estado:est,fechaRecibido:isoD(g('fechaRecibido'))||hoy(),fechaResuelto:isoD(g('fechaResuelto'))||(est==='Resuelto'?hoy():''),fechaEntregado:isoD(g('fechaEntregado')),observaciones:tx('observaciones')};
+      d={folio:fol,tipo:tp,notaFina:tx('notaFina'),cliente:tx('cliente'),telefono:tx('telefono'),serial:tx('serial'),equipo:eq,falla:tx('falla'),marca:marca,sucursal:tx('sucursal'),asesor:as,asesorUid:uid,tecnico:tx('tecnico'),tecnicoUid:(est==='Resuelto'&&isoD(g('fechaEntregado')))?'importado':null,estado:est,fechaRecibido:isoD(g('fechaRecibido'))||hoy(),fechaResuelto:isoD(g('fechaResuelto'))||(est==='Resuelto'?hoy():''),fechaEntregado:isoD(g('fechaEntregado')),observaciones:tx('observaciones')};
     }
     if(seen[key]){out.dup++;return;}
     seen[key]=1;d.importado=true;d.creadoAt=ts();d.creadoMs=Date.now();out.ok.push(d);
