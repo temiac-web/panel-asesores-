@@ -91,12 +91,11 @@ var FB_CONFIG={apiKey:"AIzaSyDEXEF0mRg3_nF6cZJLSNhtxMRI6qLvVKs",authDomain:"pane
 var ADMIN_EMAIL='nefertigonza@gmail.com';
 var BRANDS={tekio:{n:'Tekio',pill:'p-t',color:'#FF7A3D'},infot:{n:'InfoT',pill:'p-i',color:'#4ADE80'},megalaptop:{n:'MegaLaptop',pill:'p-m',color:'#5CA4FF'}};
 var CANALES=['Tienda','WhatsApp','Instagram','Facebook','Referido','Leads','Otro'];
-var ROLES={asesor:'Asesor',tecnico:'Técnico',asignadora:'Asignadora'};
+var ROLES={asesor:'Asesor',tecnico:'Técnico'};
 var NAV={
-  asesor:[['venta','Registrar venta'],['ventas','Mis ventas'],['casos','Garantías'],['leads','Mis leads']],
+  asesor:[['venta','Registrar venta'],['ventas','Mis ventas'],['casos','Garantías']],
   tecnico:[['tcasos','Casos']],
-  asignadora:[['asignar','Asignar leads']],
-  admin:[['resumen','Resumen'],['turno','Turno de hoy'],['personas','Personas'],['importar','Importar'],['ventasadm','Ventas'],['repetidas','Ventas repetidas']]
+  admin:[['resumen','Resumen'],['personas','Personas'],['importar','Importar'],['repetidas','Ventas repetidas']]
 };
 
 firebase.initializeApp(FB_CONFIG);
@@ -124,7 +123,6 @@ function errMsg(e){var c=e&&e.code||'';
 
 /* ====== estado ====== */
 var S={user:null,perfil:null,role:null,view:null,data:{},unsubs:{},cache:{},msg:null,ready:false,authErr:''};
-var A=window.A={};
 function sub(name,query,cb){if(S.unsubs[name])S.unsubs[name]();S.unsubs[name]=query.onSnapshot(function(snap){S.data[name]=snap.docs.map(function(d){var o=d.data();o.id=d.id;return o;});cb&&cb();render();},function(e){S.data[name]=[];S.msg={c:'e',t:'No se pudo leer '+name+': '+errMsg(e)};render();});}
 function unsubAll(){Object.keys(S.unsubs).forEach(function(k){S.unsubs[k]();});S.unsubs={};S.data={};}
 function marcas(){return (S.perfil&&S.perfil.marcas)||[];}
@@ -164,7 +162,6 @@ function go(view){
   Object.keys(S.unsubs).forEach(function(k){S.unsubs[k]();});S.unsubs={};S.data={};
   var uid=S.user.uid;
   if(S.role==='asesor'){
-    sub('turno_mio',db.collection('turnos').where('uid','==',uid).where('fecha','==',hoy()));
     if(view==='venta'||view==='ventas'){
       sub('ventas_mias',db.collection('ventas_asesor').where('asesorUid','==',uid));
       var mq=misMarcas().slice(0,10);
@@ -172,23 +169,15 @@ function go(view){
       sub('directorio',db.collection('directorio'));
     }
     if(view==='casos')sub('casos',db.collection('casos').where('asesorUid','==',uid));
-    if(view==='leads')sub('leads',db.collection('leads').where('asesorUid','==',uid));
   }
   if(S.role==='tecnico'&&view==='tcasos'){
     sub('casos_todos',db.collection('casos'));
   }
-  if(S.role==='asignadora'&&view==='asignar'){
-    var mm=marcas();
-    if(mm.length)sub('leads',db.collection('leads').where('marca','in',mm.slice(0,10)));
-    sub('turnos',db.collection('turnos').where('fecha','==',hoy()));
-  }
   if(S.role==='admin'){
-    if(view==='resumen'){sub('ventas_asesor',db.collection('ventas_asesor'));sub('casos',db.collection('casos'));sub('leads',db.collection('leads'));}
-    if(view==='ventasadm'){sub('ventas_asesor',db.collection('ventas_asesor'));sub('usuarios',db.collection('usuarios'));}
+    if(view==='resumen'){sub('ventas_asesor',db.collection('ventas_asesor'));sub('casos',db.collection('casos'));}
     if(view==='repetidas')sub('ventas_asesor',db.collection('ventas_asesor'));
     if(view==='personas')sub('usuarios',db.collection('usuarios'),syncDir);
     if(view==='importar'){sub('usuarios',db.collection('usuarios'));sub('ventas_asesor',db.collection('ventas_asesor'));sub('casos',db.collection('casos'));}
-    if(view==='turno'){sub('turnos',db.collection('turnos').where('fecha','==',hoy()));sub('usuarios',db.collection('usuarios'));}
   }
   render();
 }
@@ -209,7 +198,7 @@ function render(){
   var who=S.role==='admin'?'Supervisora':ROLES[S.role];
   root.innerHTML='<div class="app"><aside class="sb"><div class="br"><span class="mk"></span>Panel de Asesores</div>'+nav+
     '<div class="me"><b>'+esc(nombre())+'</b><span class="mu">'+esc(who)+'</span><br><button class="bt sm" style="margin-top:8px" onclick="A.out()">Salir</button></div></aside><main class="mn">'+
-    (S.msg?'<div class="al '+S.msg.c+'">'+esc(S.msg.t)+'</div>':'')+(S.role==='asesor'?turnoBar():'')+viewHTML()+'</main></div>';
+    (S.msg?'<div class="al '+S.msg.c+'">'+esc(S.msg.t)+'</div>':'')+viewHTML()+'</main></div>';
   restore(keep);after();
 }
 function hhmm(ms){if(!ms)return '';var d=new Date(ms);return ('0'+d.getHours()).slice(-2)+':'+('0'+d.getMinutes()).slice(-2);}
@@ -268,12 +257,6 @@ function listoBlock(c){
   var up=L.length<3?'<label class="'+(L.length?'bt sm':'prim sm')+'" style="display:inline-flex;align-items:center;cursor:pointer">📸 '+(L.length?'Agregar otra captura (respuesta del cliente)':'Subir comprobante: equipo listo / respuesta del cliente')+'<input type="file" accept="image/*" class="hide" onchange="A.listo(\''+c.id+'\',this)"></label>':'';
   return (L.length?'<div class="al o">✅ Avisaste que el equipo está listo ('+L.length+' captura'+(L.length>1?'s':'')+').</div>'+imgs:'<div class="al w">⚠️ Equipo resuelto: avísale al cliente que ya puede retirarlo y sube la captura (o su respuesta).</div>')+'<div class="bs">'+up+'</div>';
 }
-function turnoBar(){
-  var t=(S.data.turno_mio||[])[0];
-  if(t&&t.sacado)return '<div class="al w">Tu supervisora te sacó del turno de hoy. Habla con ella si necesitas volver.</div>';
-  if(t&&t.activo)return '<div class="al o" style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between"><span>Estás en turno desde las '+hhmm(t.entradaMs)+'. Los leads te llegan a ti.</span><button class="bt sm" onclick="A.salirTurno()">Salir de turno</button></div>';
-  return '<div class="al i" style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between"><span>No estás en turno. Entra para recibir leads hoy.</span><button class="prim sm" onclick="A.entrarTurno()">Entrar en turno</button></div>';
-}
 function loginHTML(){
   return '<div class="login"><div class="lc"><div class="br"><span class="mk"></span>Panel de Asesores</div><div><h1>Ingresar</h1><div class="mu" style="padding-top:4px">Entra con tu correo y tu clave.</div></div>'+
   (S.authErr?'<div class="al e">'+esc(S.authErr)+'</div>':'')+
@@ -287,15 +270,11 @@ function viewHTML(){
   if(v==='venta')return vVenta();
   if(v==='ventas')return vMisVentas();
   if(v==='casos')return vCasosAsesor();
-  if(v==='leads')return vLeadsAsesor();
   if(v==='tcasos')return vCasosTecnico();
-  if(v==='asignar')return vAsignar();
   if(v==='resumen')return vResumen();
   if(v==='personas')return vPersonas();
-  if(v==='turno')return vTurno();
   if(v==='importar')return vImportar();
   if(v==='repetidas')return vRepetidas();
-  if(v==='ventasadm')return vVentasAdm();
   return '';
 }
 function after(){
@@ -305,7 +284,6 @@ function after(){
 }
 
 /* ====== ASESOR: registrar venta ====== */
-var MAX_NOTA=2; /* veces que se puede cargar la misma nota en una marca */
 var F={brand:null,nota:'',suc:'',rd:null,saving:false};
 function misMarcas(){return marcas().filter(function(b){return BRANDS[b];});}
 function ventasAll(){var m={};(S.data.ventas_mias||[]).concat(S.data.ventas_marca||[]).forEach(function(v){m[v.id]=v;});return Object.keys(m).map(function(k){return m[k];});}
@@ -384,12 +362,9 @@ function vVenta(){
   '<div class="f"><label for="v-precio">Precio</label><input id="v-precio" type="text" inputmode="decimal" placeholder="$ 0.00" oninput="A.calc()"></div>'+
   '<div class="f"><label for="v-canal">Canal de venta</label><select id="v-canal">'+CANALES.map(function(c){return '<option>'+c+'</option>';}).join('')+'</select></div>'+
   '<div class="f full"><label for="v-obs">Observación (opcional)</label><input id="v-obs" type="text" placeholder="Escribe aquí lo que quieras agregar"></div></div>'+
-  '<div id="v-dup">'+dupMsg()+'</div>'+
+  '<div id="v-dup">'+(dup?'<div class="al w">La nota '+esc(F.nota)+' ya está registrada en '+esc((BRANDS[F.brand]||{n:F.brand}).n)+'. Revisa el número antes de guardar.</div>':'')+'</div>'+
   '<div class="ft"><div class="tt"><small>Total de la venta</small><b id="v-total">$0.00</b></div><button class="prim" id="v-save" onclick="A.saveVenta()"'+(F.saving?' disabled':'')+'>'+(F.saving?'Guardando…':'Guardar venta')+'</button></div></div>';
 }
-function notaCount(){var n=String(F.nota||'').trim();if(!n)return 0;return ventasAll().filter(function(v){return String(v.notaFina)===n&&v.marca===F.brand;}).length;}
-function dupMsg(){var c=notaCount();if(!c)return '';var mk=(BRANDS[F.brand]||{n:F.brand}).n;
-  return '<div class="al '+(c>=MAX_NOTA?'e':'w')+'">'+(c>=MAX_NOTA?'La nota '+esc(F.nota)+' ya está registrada '+c+' veces en '+esc(mk)+': no se puede cargar otra vez.':'La nota '+esc(F.nota)+' ya está registrada en '+esc(mk)+'. Si la guardas de nuevo será la última vez que se permite.')+'</div>';}
 function dupNota(){var n=String(F.nota||'').trim();if(!n)return false;return ventasAll().some(function(v){return String(v.notaFina)===n&&v.marca===F.brand;});}
 function mesAnt(){var d=new Date();d.setDate(1);d.setMonth(d.getMonth()-1);return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2);}
 
@@ -419,38 +394,6 @@ function vMisVentas(){
   return '<div><h1>Mis ventas</h1><div class="mu" style="padding-top:4px">Las ventas de tu marca activa y las que vendiste tú en cualquier marca. Usa «Solo mis ventas» para sacar tu comisión.</div></div>'+
   '<div class="stats">'+cards+'</div><div class="cd"><div class="fl">'+c1+'</div><div class="fl">'+c2+'</div><div class="fl">'+c3+'</div><div>'+rows+'</div></div>';
 }
-function vVentasAdm(){
-  var fm=S.avm||'Todas',q=norm(S.aq||'');
-  var all=(S.data.ventas_asesor||[]).slice().sort(function(a,b){return (b.fecha||'').localeCompare(a.fecha||'')||(b.creadoMs||0)-(a.creadoMs||0);});
-  var lista=all.filter(function(v){return (fm==='Todas'||v.marca===fm)&&(!q||norm([v.notaFina,v.producto,v.asesor,v.cargadoPor,v.sucursal].join(' ')).indexOf(q)>=0);});
-  var total=lista.length;lista=lista.slice(0,150);
-  var ed=S.edit?all.filter(function(x){return x.id===S.edit;})[0]:null,edHTML='';
-  if(ed){
-    var ases=(S.data.usuarios||[]).filter(function(u){return u.rol==='asesor';}).sort(function(a,b){return (a.nombre||'').localeCompare(b.nombre||'');});
-    var vo='<option value="__keep">'+esc(ed.asesor||'—')+' (actual)</option>'+ases.map(function(u){return '<option value="'+esc(u.id)+'">'+esc(u.nombre)+'</option>';}).join('');
-    edHTML='<div class="cd" style="border-color:var(--vio)"><div class="sec">Editar venta · nota '+esc(ed.notaFina)+'</div>'+
-    (ed.estado&&ed.estado!=='nueva'?'<div class="al w">Esta venta ya fue procesada por el CRG. Lo que cambies aquí no se actualiza allá: corrígela también en el CRG.</div>':'')+
-    '<div class="g"><div class="f"><label for="e-fecha">Fecha</label><input id="e-fecha" type="date" value="'+esc(ed.fecha||'')+'"></div>'+
-    '<div class="f"><label for="e-nota">N° de nota</label><input id="e-nota" type="text" value="'+esc(ed.notaFina)+'"></div>'+
-    '<div class="f"><label for="e-marca">Marca</label><select id="e-marca">'+Object.keys(BRANDS).map(function(b){return '<option value="'+b+'"'+(ed.marca===b?' selected':'')+'>'+BRANDS[b].n+'</option>';}).join('')+'</select></div>'+
-    '<div class="f"><label for="e-suc">Sucursal</label><input id="e-suc" type="text" value="'+esc(ed.sucursal||'')+'"></div>'+
-    '<div class="f"><label for="e-vend">Asesora que vendió</label><select id="e-vend">'+vo+'</select></div>'+
-    '<div class="f"><label for="e-canal">Canal</label><select id="e-canal">'+CANALES.map(function(c){return '<option'+(ed.canal===c?' selected':'')+'>'+c+'</option>';}).join('')+'</select></div>'+
-    '<div class="f full"><label for="e-prod">Producto</label><input id="e-prod" type="text" value="'+esc(ed.producto||'')+'"></div>'+
-    '<div class="f"><label for="e-precio">Precio</label><input id="e-precio" type="text" inputmode="decimal" value="'+esc(ed.precio!=null?ed.precio:'')+'"></div>'+
-    '<div class="f full"><label for="e-obs">Observación</label><input id="e-obs" type="text" value="'+esc(ed.observaciones||'')+'"></div></div>'+
-    '<div class="fl"><button class="prim" onclick="A.guardarEd()">Guardar cambios</button><button class="bt" onclick="A.cancelEd()">Cancelar</button></div></div>';
-  }
-  var chips=[['Todas','Todas las marcas']].concat(Object.keys(BRANDS).map(function(b){return [b,BRANDS[b].n];})).map(function(x){return '<button class="cp'+(fm===x[0]?' on':'')+'" onclick="A.avm(\''+x[0]+'\')">'+x[1]+'</button>';}).join('');
-  var rows=lista.map(function(v){return '<div class="row"><span class="mu" style="flex:0 0 78px">'+fdate(v.fecha)+'</span><span class="mu" style="flex:0 0 74px">N° '+esc(v.notaFina)+'</span>'+brandPill(v.marca)+
-    '<span style="flex:1 1 180px;font-weight:600">'+esc(v.producto)+(v.sucursal?' <span class="mu" style="font-weight:400">· '+esc(v.sucursal)+'</span>':'')+'</span>'+
-    '<span class="mu" style="flex:0 0 150px">Vendió '+esc(v.asesor||'—')+(v.cargadoPor&&v.cargadoPor!==v.asesor?'<br>Cargó '+esc(v.cargadoPor):'')+'</span>'+
-    (v.porRevisar?'<span class="pill p-w">Por revisar</span>':'')+'<b style="flex:0 0 80px;text-align:right;color:var(--ok)">'+money(v.total)+'</b>'+
-    '<span class="rt"><button class="bt sm" onclick="A.editarV(\''+v.id+'\')">Editar</button><button class="bt sm" onclick="A.borrarV(\''+v.id+'\')">Borrar</button></span></div>';}).join('')||'<div class="mu" style="padding:12px 0">No hay ventas con estos filtros.</div>';
-  return '<div><h1>Ventas</h1><div class="mu" style="padding-top:4px">Todas las ventas que cargan los asesores. Aquí puedes corregirlas o borrarlas.</div></div>'+edHTML+
-  '<div class="cd"><div class="f"><label for="a-q">Buscar (nota, producto, asesora, sucursal)</label><input id="a-q" type="text" value="'+esc(S.aq||'')+'" oninput="A.aq(this.value)"></div><div class="fl">'+chips+'</div>'+
-  '<div class="mu">'+total+' venta'+(total===1?'':'s')+(total>150?' (se muestran las 150 más recientes: usa el buscador)':'')+'</div><div>'+rows+'</div></div>';
-}
 function gruposRep(){
   var g={};(S.data.ventas_asesor||[]).forEach(function(v){var k=[v.marca,String(v.notaFina).trim(),Number(v.total)||0].join('|');(g[k]=g[k]||[]).push(v);});
   return Object.keys(g).filter(function(k){return g[k].length>1;}).map(function(k){
@@ -465,24 +408,6 @@ function vRepetidas(){
     '<div class="bs"><button class="prim sm" onclick="A.limpiarRep(\''+esc(g.k)+'\')">Borrar '+g.extra.length+' copia'+(g.extra.length>1?'s':'')+' y dejar 1</button></div></div>';}).join('')||'<div class="al o">No hay ventas repetidas.</div>';
   return '<div><h1>Ventas repetidas</h1><div class="mu" style="padding-top:4px">Ventas con la misma marca, nota y monto. Se conserva la que ya procesó el CRG o, si no, la más antigua.</div></div>'+rows;
 }
-A.avm=function(v){S.avm=v;render();};
-A.aq=function(v){S.aq=v;render();};
-A.editarV=function(id){S.edit=null;render();S.edit=id;render();window.scrollTo(0,0);};
-A.cancelEd=function(){S.edit=null;render();};
-A.borrarV=function(id){
-  var v=(S.data.ventas_asesor||[]).filter(function(x){return x.id===id;})[0];if(!v)return;
-  if(!window.confirm('¿Borrar la venta nota '+v.notaFina+' ('+(v.producto||'')+', '+money(v.total)+')? No se puede deshacer.'))return;
-  db.doc('ventas_asesor/'+id).delete().then(function(){S.msg={c:'o',t:'Venta borrada.'};render();}).catch(function(e){S.msg={c:'e',t:errMsg(e)};render();});
-};
-A.guardarEd=function(){
-  var v=(S.data.ventas_asesor||[]).filter(function(x){return x.id===S.edit;})[0];if(!v)return;
-  var nota=$('e-nota').value.trim(),prod=$('e-prod').value.trim(),precio=num($('e-precio').value),cant=Number(v.cantidad)||1;
-  if(!nota||!prod||precio<=0){S.msg={c:'w',t:'Completa nota, producto y un precio mayor a cero.'};render();return;}
-  var upd={fecha:$('e-fecha').value||v.fecha,notaFina:nota,marca:$('e-marca').value,sucursal:$('e-suc').value.trim(),producto:prod,precio:precio,total:precio*cant,canal:$('e-canal').value,observaciones:$('e-obs').value.trim(),porRevisar:false,editadoAt:ts()};
-  var vs=$('e-vend').value;
-  if(vs!=='__keep'){var u=(S.data.usuarios||[]).filter(function(x){return x.id===vs;})[0];if(u){upd.asesor=u.nombre;upd.asesorUid=u.id;}}
-  db.doc('ventas_asesor/'+v.id).update(upd).then(function(){S.edit=null;S.msg={c:'o',t:'Venta actualizada.'};render();}).catch(function(e){S.msg={c:'e',t:errMsg(e)};render();});
-};
 A.limpiarRep=function(k){
   var g=gruposRep().filter(function(x){return x.k===k;})[0];if(!g)return;
   if(!window.confirm('Se borrarán '+g.extra.length+' copia(s) de la nota '+g.keep.notaFina+' y se dejará 1. ¿Continuar?'))return;
@@ -642,20 +567,6 @@ function casoCard(c,act,tec){
   (tec?'':((c.listoCapturas&&c.listoCapturas.length)?'<div class="ln">Aviso de equipo listo: <i style="color:var(--ok)">✅ '+c.listoCapturas.length+' captura'+(c.listoCapturas.length>1?'s':'')+' · '+fdt(c.listoMs)+'</i></div>'+c.listoCapturas.map(function(x){return '<img class="shot" src="'+x.u+'" alt="Comprobante de aviso" style="cursor:zoom-in" onclick="this.style.maxHeight=this.style.maxHeight===\'none\'?\'260px\':\'none\'">';}).join(''):'')+(c.contactoCaptura?'<div class="ln">Contacto al cliente: <i style="color:var(--ok)">✅ '+fdt(c.contactoMs)+' · '+esc(c.contactoPor||c.tecnico||'')+'</i></div><img class="shot" src="'+c.contactoCaptura+'" alt="Comprobante de contacto" style="cursor:zoom-in" onclick="this.style.maxHeight=this.style.maxHeight===\'none\'?\'260px\':\'none\'">':(c.tecnicoUid?'<div class="ln">Contacto al cliente: <i style="color:var(--amb)">sin comprobante todavía</i></div>':'')))+(act||'')+'</div>';
 }
 
-/* ====== ASESOR: leads ====== */
-function vLeadsAsesor(){
-  var list=(S.data.leads||[]).slice().sort(function(a,b){return (b.fecha||'').localeCompare(a.fecha||'');});
-  var pend=list.filter(function(l){return !l.respondido;}).length;
-  var cards=list.map(function(l){
-    return '<div class="item" style="border-left-color:'+(l.respondido?'var(--ok)':'var(--amb)')+'"><div class="hd">'+brandPill(l.marca)+'<span class="mu">'+fdate(l.fecha)+'</span><span class="rt"><span class="pill '+(l.respondido?'p-o':'p-w')+'">'+(l.respondido?'Respondido':'Por responder')+'</span></span></div>'+
-    '<div class="nm">'+esc(l.nombre)+'</div><div class="ln">Teléfono: <i>'+esc(l.telefono)+'</i>'+(l.tipo?' · Tipo: <i>'+esc(l.tipo)+'</i>':'')+'</div>'+
-    (l.equipo?'<div class="ln">Equipo: <i>'+esc(l.equipo)+'</i></div>':'')+(l.uso?'<div class="ln">Uso: <i>'+esc(l.uso)+'</i></div>':'')+(l.obs?'<div class="ln">Observaciones: <i>'+esc(l.obs)+'</i></div>':'')+
-    (l.captura?'<div style="padding-top:6px"><img class="shot" src="'+l.captura+'" alt="Captura de la respuesta"></div>':
-      '<div class="bs"><label class="prim sm" style="display:inline-flex;align-items:center;cursor:pointer">Subir captura de la respuesta<input type="file" accept="image/*" class="hide" onchange="A.captura(\''+l.id+'\',this)"></label></div>')+'</div>';
-  }).join('')||'<div class="mu">Todavía no tienes leads asignados.</div>';
-  return '<div><h1>Mis leads</h1><div class="mu" style="padding-top:4px">Escríbele a cada cliente y sube la captura como prueba.</div></div><div class="stats"><div class="sc" style="--t:#F5B63A"><small>Por responder</small><b>'+pend+'</b></div><div class="sc" style="--t:#4ADE80"><small>Respondidos</small><b>'+(list.length-pend)+'</b></div></div>'+cards;
-}
-
 /* ====== TÉCNICO ====== */
 function vCasosTecnico(){
   var all=(S.data.casos_todos||[]).slice(),sc=S.fsc||'todos',fb=S.fbc||'Todas',mm=marcas();
@@ -683,53 +594,6 @@ function vCasosTecnico(){
   banner+chips2+'<div class="fl">'+chips+'</div>'+cards;
 }
 
-/* ====== ASIGNADORA ====== */
-var P={text:'',marca:null};
-function turnoHoy(){return (S.data.turnos||[]).filter(function(t){return t.activo===true&&t.sacado!==true;});}
-function enTurnoDe(marca){return turnoHoy().filter(function(t){return (t.marcas||[]).indexOf(marca)>=0;}).sort(function(a,b){return (a.nombre||'').localeCompare(b.nombre||'');}).map(function(t){return {id:t.uid,nombre:t.nombre};});}
-function selMarca(){var m=marcas();return P.marca&&m.indexOf(P.marca)>=0?P.marca:m[0];}
-function parseLeads(t){
-  var blocks=[],cur=null,keys={nombre:'nombre',cliente:'nombre',telefono:'telefono',tel:'telefono',whatsapp:'telefono',celular:'telefono',tipo:'tipo',equipo:'equipo',nuevo:'equipo',refurbished:'equipo',producto:'equipo',uso:'uso',observaciones:'obs',observacion:'obs',obs:'obs',nota:'obs',notas:'obs'};
-  String(t||'').split(/\r?\n/).forEach(function(line){
-    var m=line.match(/^\s*([^:]{2,30}):\s*(.*)$/);
-    if(!m)return;
-    var k=keys[norm(m[1])];if(!k)return;
-    if(k==='nombre'&&cur&&cur.nombre){blocks.push(cur);cur=null;}
-    if(!cur)cur={};
-    cur[k]=(cur[k]?cur[k]+' · ':'')+m[2].trim();
-  });
-  if(cur)blocks.push(cur);
-  return blocks.filter(function(b){return b.nombre||b.telefono;});
-}
-function plan(blocks,asesores,leads){
-  var cnt={};asesores.forEach(function(a){cnt[a.id]=0;});
-  (leads||[]).forEach(function(l){if(l.fecha===hoy()&&cnt[l.asesorUid]!=null)cnt[l.asesorUid]++;});
-  return blocks.map(function(b){
-    var best=null;asesores.forEach(function(a){if(best===null||cnt[a.id]<cnt[best.id])best=a;});
-    if(best)cnt[best.id]++;
-    return {b:b,a:best};
-  });
-}
-function vAsignar(){
-  var m=marcas();
-  if(!m.length)return '<h1>Asignar leads</h1><div class="al w">Tu usuario no tiene marcas asignadas. Avísale a tu supervisora.</div>';
-  var marca=selMarca(),ases=enTurnoDe(marca);
-  var blocks=parseLeads(P.text),pl=plan(blocks,ases,S.data.leads);
-  var leads=(S.data.leads||[]).slice().sort(function(a,b){return (b.creadoMs||0)-(a.creadoMs||0);}).slice(0,40);
-  var chips=ases.map(function(a){return '<span class="pill p-v" style="font-size:14px;padding:6px 14px">'+esc(a.nombre)+'</span>';}).join('')||'<span class="mu">Ningún asesor de '+esc((BRANDS[marca]||{n:marca}).n)+' se ha puesto en turno todavía. Ellos entran desde su propio panel.</span>';
-  var marcaSel=m.length>1?'<div class="f"><label>Marca de estos leads</label><div class="g">'+m.map(function(b){return '<button class="ch'+(marca===b?' on':'')+'" style="--d:'+BRANDS[b].color+'" onclick="A.pmarca(\''+b+'\')">'+BRANDS[b].n+'</button>';}).join('')+'</div></div>':'';
-  var prev=pl.map(function(x){return '<div class="item"><div class="hd"><span class="nm">'+esc(x.b.nombre||'(sin nombre)')+'</span><span class="rt"><span class="pill '+(x.a?'p-v':'p-r')+'">'+(x.a?'→ '+esc(x.a.nombre):'Sin asesor en turno')+'</span></span></div><div class="ln">Teléfono: <i>'+esc(x.b.telefono||'—')+'</i>'+(x.b.tipo?' · Tipo: <i>'+esc(x.b.tipo)+'</i>':'')+(x.b.equipo?' · Equipo: <i>'+esc(x.b.equipo)+'</i>':'')+(x.b.uso?' · Uso: <i>'+esc(x.b.uso)+'</i>':'')+'</div>'+(x.b.obs?'<div class="ln">Obs: <i>'+esc(x.b.obs)+'</i></div>':'')+'</div>';}).join('');
-  var hist=leads.map(function(l){var op=enTurnoDe(l.marca);return '<div class="row">'+brandPill(l.marca)+'<b style="flex:1 1 160px">'+esc(l.nombre)+'</b><span class="mu">'+esc(l.telefono)+'</span><span class="pill p-v">'+esc(l.asesor)+'</span><span class="pill '+(l.respondido?'p-o':'p-w')+'">'+(l.respondido?'Respondido':'Sin respuesta')+'</span>'+
-    (!l.respondido&&op.length?'<select style="width:auto;min-height:34px" onchange="A.reasignar(\''+l.id+'\',this.value)"><option value="">Reasignar…</option>'+op.map(function(a){return '<option value="'+a.id+'">'+esc(a.nombre)+'</option>';}).join('')+'</select>':'')+'</div>';}).join('')||'<div class="mu">Aún no hay leads registrados.</div>';
-  return '<div><h1>Asignar leads</h1><div class="mu" style="padding-top:4px">Marcas: '+m.map(function(b){return esc(BRANDS[b]?BRANDS[b].n:b);}).join(', ')+'</div></div>'+
-  '<div class="cd"><div class="sec">1 · Asesores en turno ahora</div><div class="fl">'+chips+'</div><div class="mu">Cada asesor se pone en turno desde su panel. Tu supervisora puede sacar a alguien del turno.</div></div>'+
-  '<div class="cd"><div class="sec">2 · Pega los leads</div>'+marcaSel+'<div class="f full"><label for="p-text">Un bloque por lead, con líneas "Campo: valor" (Nombre, Teléfono, Tipo, Equipo, Uso, Observaciones)</label><textarea id="p-text" oninput="A.ptext(this.value)" placeholder="Nombre: María Pérez\nTeléfono: 0414-0000000\nTipo: Nuevo\nUso: Estudio\nObservaciones: quiere pagar en cuotas">'+esc(P.text)+'</textarea></div>'+
-  (blocks.length?'<div class="sec">'+blocks.length+' lead'+(blocks.length>1?'s':'')+' detectado'+(blocks.length>1?'s':'')+' · reparto equitativo</div>'+prev:'')+
-  '<div class="ft"><span class="mu">Se reparte al asesor en turno que lleva menos leads hoy.</span><button class="prim" onclick="A.registrar()" '+((!blocks.length||!ases.length)?'disabled':'')+'>Registrar y asignar</button></div></div>'+
-  '<div class="sec">Leads registrados</div><div class="cd">'+hist+'</div>';
-}
-
-
 /* ====== SUPERVISORA: importar ventas y garantías existentes ====== */
 var I={tipo:'ventas',marca:'tekio',rows:null,name:''};
 function hk(s){return norm(s).replace(/[^a-z0-9]+/g,' ').trim();}
@@ -740,7 +604,7 @@ var ALIAS={
   observaciones:['observaciones','observacion','comentarios','notas'],
   producto:['producto','equipo','articulo','descripcion','item'],cantidad:['cantidad','cant','unidades'],
   precio:['precio','precio unitario','precio unit','pvp'],total:['total','monto','importe','total venta'],canal:['canal','origen','medio'],
-  folio:['folio','n caso','caso'],telefono:['telefono','tel','celular','whatsapp','numero de telefono'],tipo:['tipo','tipo de caso'],cliente:['cliente','nombre cliente','nombre'],serial:['serial','serie','n serie'],
+  folio:['folio','n caso','caso'],tipo:['tipo','tipo de caso'],cliente:['cliente','nombre cliente','nombre'],serial:['serial','serie','n serie'],
   falla:['falla','falla reportada','problema','motivo'],estado:['estado','status'],tecnico:['tecnico'],
   fechaRecibido:['fecha recibido','recibido','fecha ingreso','ingreso','fecha'],fechaResuelto:['fecha resuelto','resuelto'],fechaEntregado:['fecha entregado','entregado']
 };
@@ -765,7 +629,7 @@ function impBuild(){
   var rows=I.rows||[],out={ok:[],dup:0,bad:0,sinAsesor:{},total:rows.length};
   if(!rows.length)return out;
   var vent=I.tipo==='ventas';
-  var cm=colMap(rows[0],vent?['fecha','notaFina','marca','sucursal','asesor','producto','cantidad','precio','total','canal','observaciones']:['folio','tipo','notaFina','cliente','telefono','serial','equipo','falla','marca','sucursal','asesor','estado','tecnico','fechaRecibido','fechaResuelto','fechaEntregado','observaciones']);
+  var cm=colMap(rows[0],vent?['fecha','notaFina','marca','sucursal','asesor','producto','cantidad','precio','total','canal','observaciones']:['folio','tipo','notaFina','cliente','serial','equipo','falla','marca','sucursal','asesor','estado','tecnico','fechaRecibido','fechaResuelto','fechaEntregado','observaciones']);
   out.cols=cm;
   var us={};(S.data.usuarios||[]).forEach(function(u){if(u.rol==='asesor')us[norm(u.nombre)]=u.id;});
   var seen={};
@@ -787,7 +651,7 @@ function impBuild(){
       if(!eq){out.bad++;return;}
       var yy=hoy().replace(/-/g,'').slice(2),fol=tx('folio')||((tp==='Garantía'?'GT-':'ST-')+yy+'-'+Math.random().toString(36).slice(2,6).toUpperCase());
       key=(tx('folio')||'')+'|'+tx('notaFina')+'|'+norm(tx('serial'))+'|'+norm(eq);
-      d={folio:fol,tipo:tp,notaFina:tx('notaFina'),cliente:tx('cliente'),telefono:tx('telefono'),serial:tx('serial'),equipo:eq,falla:tx('falla'),marca:marca,sucursal:tx('sucursal'),asesor:as,asesorUid:uid,tecnico:tx('tecnico'),tecnicoUid:(est==='Resuelto'&&isoD(g('fechaEntregado')))?'importado':null,estado:est,fechaRecibido:isoD(g('fechaRecibido'))||hoy(),fechaResuelto:isoD(g('fechaResuelto'))||(est==='Resuelto'?hoy():''),fechaEntregado:isoD(g('fechaEntregado')),observaciones:tx('observaciones')};
+      d={folio:fol,tipo:tp,notaFina:tx('notaFina'),cliente:tx('cliente'),serial:tx('serial'),equipo:eq,falla:tx('falla'),marca:marca,sucursal:tx('sucursal'),asesor:as,asesorUid:uid,tecnico:tx('tecnico'),tecnicoUid:est==='Resuelto'?'importado':null,estado:est,fechaRecibido:isoD(g('fechaRecibido'))||hoy(),fechaResuelto:isoD(g('fechaResuelto'))||(est==='Resuelto'?hoy():''),fechaEntregado:isoD(g('fechaEntregado')),observaciones:tx('observaciones')};
     }
     if(seen[key]){out.dup++;return;}
     seen[key]=1;d.importado=true;d.creadoAt=ts();d.creadoMs=Date.now();out.ok.push(d);
@@ -817,7 +681,7 @@ function vImportar(){
 
 /* ====== SUPERVISORA ====== */
 function vResumen(){
-  var v=S.data.ventas_asesor||[],c=S.data.casos||[],l=S.data.leads||[];
+  var v=S.data.ventas_asesor||[],c=S.data.casos||[];
   var rev=v.filter(function(x){return x.porRevisar;});
   var AL=alertasCasos(c,alertaCfg());
   var conC=c.filter(function(x){return x.contactoCaptura;}).sort(function(a,b){return (b.contactoMs||0)-(a.contactoMs||0);}).slice(0,6).map(function(x){return casoCard(x);}).join('');
@@ -825,24 +689,10 @@ function vResumen(){
   var rows=last.map(function(x){return '<div class="row"><span class="mu" style="flex:0 0 78px">'+fdate(x.fecha)+'</span>'+brandPill(x.marca)+'<b style="flex:1 1 140px">'+esc(x.asesor)+'</b><span class="mu">N° '+esc(x.notaFina)+' · '+esc(x.producto)+'</span>'+(x.porRevisar?'<span class="pill p-w">Por revisar</span>':'')+'<b style="color:var(--ok)">'+money(x.total)+'</b></div>';}).join('')||'<div class="mu">Aún no hay ventas registradas desde este panel.</div>';
   return '<div><h1>Resumen</h1><div class="mu" style="padding-top:4px">Lo que el equipo ha registrado en este panel. El CRG lo recogerá de aquí.</div></div><div class="stats">'+
   '<div class="sc" style="--t:#8B6CF0"><small>Ventas registradas</small><b>'+v.length+'</b></div><div class="sc" style="--t:#F5B63A"><small>Por revisar</small><b>'+rev.length+'</b></div>'+
-  '<div class="sc" style="--t:#5CA4FF"><small>Casos abiertos</small><b>'+c.filter(function(x){return x.estado!=='Resuelto';}).length+'</b></div><div class="sc" style="--t:#4ADE80"><small>Leads respondidos</small><b>'+l.filter(function(x){return x.respondido;}).length+' / '+l.length+'</b></div><div class="sc" style="--t:#F87171"><small>Con alerta</small><b>'+AL.length+'</b></div></div>'+
+  '<div class="sc" style="--t:#5CA4FF"><small>Casos abiertos</small><b>'+c.filter(function(x){return x.estado!=='Resuelto';}).length+'</b></div><div class="sc" style="--t:#F87171"><small>Con alerta</small><b>'+AL.length+'</b></div></div>'+
   alertasHTML(AL)+
   (conC?'<div class="cd"><div class="sec">Últimos comprobantes de contacto</div>'+conC+'</div>':'')+
   '<div class="cd"><div class="sec">Últimas ventas</div>'+rows+'</div>';
-}
-function vTurno(){
-  var turnos={};(S.data.turnos||[]).forEach(function(t){turnos[t.uid]=t;});
-  var ases=(S.data.usuarios||[]).filter(function(u){return u.rol==='asesor'&&u.activo===true;}).sort(function(a,b){return (a.nombre||'').localeCompare(b.nombre||'');});
-  var dentro=0;
-  var rows=ases.map(function(u){
-    var t=turnos[u.id],st,btn='';
-    if(t&&t.sacado){st='<span class="pill p-r">Sacado del turno</span>';btn='<button class="bt sm" onclick="A.turnoAdmin(\''+u.id+'\',false)">Devolver al turno</button>';}
-    else if(t&&t.activo){dentro++;st='<span class="pill p-o">En turno desde '+hhmm(t.entradaMs)+'</span>';btn='<button class="prim sm amb" onclick="A.turnoAdmin(\''+u.id+'\',true)">Sacar de turno</button>';}
-    else if(t){st='<span class="pill p-n">Salió del turno</span>';}
-    else st='<span class="pill p-n">Sin registrar hoy</span>';
-    return '<div class="row"><b style="flex:1 1 180px">'+esc(u.nombre)+'</b>'+(u.marcas||[]).map(brandPill).join(' ')+st+'<span style="margin-left:auto">'+btn+'</span></div>';
-  }).join('')||'<div class="mu">Aún no hay asesores. Créalos en Personas.</div>';
-  return '<div><h1>Turno de hoy</h1><div class="mu" style="padding-top:4px">Los asesores se ponen en turno desde su panel. Aquí puedes sacarlos si hace falta.</div></div><div class="stats"><div class="sc" style="--t:#4ADE80"><small>En turno ahora</small><b>'+dentro+'</b></div><div class="sc" style="--t:#8B6CF0"><small>Asesores activos</small><b>'+ases.length+'</b></div></div><div class="cd">'+rows+'</div>';
 }
 function vPersonas(){
   var us=(S.data.usuarios||[]).slice().sort(function(a,b){return (a.nombre||'').localeCompare(b.nombre||'');});
@@ -860,6 +710,7 @@ function vPersonas(){
 }
 
 /* ====== acciones (expuestas al HTML) ====== */
+var A=window.A={};
 A.go=go;
 A.out=function(){S.authErr='';auth.signOut();};
 A.login=function(){
@@ -869,7 +720,7 @@ A.login=function(){
   auth.signInWithEmailAndPassword(e,p).catch(function(x){S.authErr=errMsg(x);render();});
 };
 A.marca=function(b){F.brand=b;F.suc='';A.fillSuc(true);A.nota($('v-nota')?$('v-nota').value:F.nota);};
-A.nota=function(v){F.nota=v;var el=$('v-dup');if(el)el.innerHTML=dupMsg();};
+A.nota=function(v){F.nota=v;var el=$('v-dup');if(el)el.innerHTML=dupNota()?'<div class="al w">La nota '+esc(v)+' ya está registrada en '+esc((BRANDS[F.brand]||{n:F.brand}).n)+'. Revisa el número antes de guardar.</div>':'';};
 A.calc=function(){var t=$('v-total');if(t)t.textContent=money(num($('v-precio').value));};
 A.fillSuc=function(force){var b=F.brand,sel=$('v-suc');if(!sel)return;sucursales(b).then(function(l){var s=$('v-suc');if(!s||F.brand!==b)return;var pv=force?'':s.value;s.innerHTML='<option value="">Selecciona…</option>'+l.map(function(x){return '<option>'+esc(x)+'</option>';}).join('');if(pv&&l.indexOf(pv)>=0)s.value=pv;else if(F.suc&&l.indexOf(F.suc)>=0)s.value=F.suc;s.onchange=function(){F.suc=s.value;};});};
 A.leer=function(){
@@ -907,22 +758,16 @@ A.saveVenta=function(){
   var d=(vsel&&vsel!=='__otro')?(asesoresDir().filter(function(x){return x.id===vsel;})[0]||null):null;
   var vname=d?d.nombre:(vsel==='__otro'?vtxt:'');
   if(!nota||!suc||!prod||precio<=0||!vname){S.msg={c:'w',t:'Completa nota, sucursal, quién vendió, producto y precio.'};render();return;}
-  var nclean=nota.replace(/[^A-Za-z0-9\-]/g,'');
-  if(!nclean){S.msg={c:'w',t:'Revisa el número de nota.'};render();return;}
-  var exs=ventasAll().filter(function(v){return String(v.notaFina)===nota&&v.marca===F.brand;});
-  var base=F.brand+'_'+nclean,copia=0;
-  for(var ci=1;ci<=MAX_NOTA&&!copia;ci++){if(!exs.some(function(v){return v.id===base+'_'+ci;}))copia=ci;}
-  if(exs.length>=MAX_NOTA||!copia){S.msg={c:'e',t:'La nota '+nota+' ya está registrada '+exs.length+' veces en '+(BRANDS[F.brand]||{n:F.brand}).n+'. No se puede cargar más. Habla con tu supervisora.'};render();return;}
   if(dupNota()&&!window.confirm('La nota '+nota+' ya está registrada en '+(BRANDS[F.brand]||{n:F.brand}).n+'. ¿Seguro que quieres guardarla otra vez?'))return;
   var rev=dupNota()||precio>5000||!d;
   var doc={fecha:$('v-fecha').value||hoy(),notaFina:nota,marca:F.brand,sucursal:suc,asesor:vname,asesorUid:d?d.id:'',cargadoPorUid:S.user.uid,cargadoPor:nombre(),producto:prod,cantidad:1,precio:precio,total:precio,canal:$('v-canal').value,observaciones:$('v-obs').value.trim(),porRevisar:rev,estado:'nueva',creadoAt:ts(),creadoMs:Date.now()};
   F.saving=true;$('v-save').disabled=true;$('v-save').textContent='Guardando…';
-  db.collection('ventas_asesor').doc(base+'_'+copia).set(doc).then(function(){
+  db.collection('ventas_asesor').add(doc).then(function(){
     F.saving=false;
     ['v-txt','v-nota','v-prod','v-precio','v-obs','v-vend-otro'].forEach(function(k){if($(k))$(k).value='';});if($('v-vend'))$('v-vend').value='';
     F.nota='';F.rd=null;
     S.msg={c:'o',t:'Venta guardada y enviada a tu supervisora.'+(d&&d.id!==S.user.uid?' Ya aparece en las ventas de '+vname+'.':'')};render();
-  }).catch(function(e){F.saving=false;S.msg={c:'e',t:(e&&e.code==='permission-denied')?'No se pudo guardar: esa nota ya fue registrada por otra persona, o no tienes activa esa marca.':errMsg(e)};render();});
+  }).catch(function(e){F.saving=false;S.msg={c:'e',t:errMsg(e)};render();});
 };
 A.fs=function(v){S.fs=v;render();};
 A.fsc=function(v){S.fsc=v;render();};
@@ -1011,13 +856,8 @@ A.saveCaso=function(){
   var doc={folio:(C.tipo==='Garantía'?'GT-':'ST-')+yy+'-'+rnd,tipo:C.tipo,notaFina:$('c-nota').value.trim(),cliente:cli,telefono:$('c-tel').value.trim(),serial:ser,equipo:eq,falla:falla,entregan:$('c-ent').value.trim(),recibidoPor:C.recibido||'',reincidenciaDe:prev?prev.folio:'',marca:marca,sucursal:suc,asesor:nombre(),asesorUid:S.user.uid,tecnico:'',tecnicoUid:null,estado:'Pendiente',fechaRecibido:fe,fechaResuelto:'',fechaEntregado:'',observaciones:'',creadoAt:ts(),creadoMs:Date.now()};
   db.collection('casos').add(doc).then(function(){S.showCaso=false;S.msg={c:'o',t:'Caso guardado. El técnico lo verá en su Mesa de garantías.'};render();}).catch(function(e){S.msg={c:'e',t:errMsg(e)};render();});
 };
-/* leads: captura */
+/* comprimir imágenes (comprobantes) */
 function compress(file){return new Promise(function(res,rej){var r=new FileReader();r.onerror=rej;r.onload=function(){var im=new Image();im.onerror=rej;im.onload=function(){var max=900,s=Math.min(1,max/Math.max(im.width,im.height)),c=document.createElement('canvas');c.width=Math.round(im.width*s);c.height=Math.round(im.height*s);c.getContext('2d').drawImage(im,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',0.6));};im.src=r.result;};r.readAsDataURL(file);});}
-A.captura=function(id,inp){
-  var f=inp.files&&inp.files[0];if(!f)return;
-  toast('Subiendo captura…');
-  compress(f).then(function(url){return db.doc('leads/'+id).update({respondido:true,captura:url,respondidoAt:ts()});}).then(function(){toast('Captura guardada. Lead marcado como respondido.');}).catch(function(e){S.msg={c:'e',t:'No se pudo guardar la captura: '+errMsg(e)};render();});
-};
 /* técnico */
 A.listo=function(id,inp){
   var f=inp.files&&inp.files[0];if(!f)return;
@@ -1044,29 +884,6 @@ A.tomar=function(id){db.doc('casos/'+id).update({tecnicoUid:S.user.uid,tecnico:n
 A.estado=function(id,e){var u={estado:e,actualizadoAt:ts()};u.fechaResuelto=e==='Resuelto'?hoy():'';db.doc('casos/'+id).update(u).catch(function(x){S.msg={c:'e',t:errMsg(x)};render();});};
 A.entregar=function(id){db.doc('casos/'+id).update({fechaEntregado:hoy(),actualizadoAt:ts()}).catch(function(x){S.msg={c:'e',t:errMsg(x)};render();});};
 A.obs=function(id){var all=(S.data.casos_todos||[]);var c=all.filter(function(x){return x.id===id;})[0];var t=window.prompt('Observación del caso:',(c&&c.observaciones)||'');if(t===null)return;db.doc('casos/'+id).update({observaciones:t.trim(),actualizadoAt:ts()}).catch(function(x){S.msg={c:'e',t:errMsg(x)};render();});};
-/* turno */
-A.entrarTurno=function(){
-  var m=marcas();if(!m.length){S.msg={c:'w',t:'Tu usuario no tiene marcas asignadas. Avísale a tu supervisora.'};render();return;}
-  var id=hoy()+'_'+S.user.uid;
-  db.doc('turnos/'+id).set({uid:S.user.uid,nombre:nombre(),marcas:m,fecha:hoy(),activo:true,sacado:false,entradaAt:ts(),entradaMs:Date.now()}).then(function(){toast('Estás en turno. Ya puedes recibir leads.');}).catch(function(e){S.msg={c:'e',t:errMsg(e)};render();});
-};
-A.salirTurno=function(){db.doc('turnos/'+hoy()+'_'+S.user.uid).update({activo:false,salidaAt:ts(),salidaMs:Date.now()}).catch(function(e){S.msg={c:'e',t:errMsg(e)};render();});};
-A.turnoAdmin=function(uid,sacar){
-  var u={sacado:!!sacar};if(sacar)u.activo=false;else{u.activo=true;}
-  db.doc('turnos/'+hoy()+'_'+uid).update(u).catch(function(e){S.msg={c:'e',t:errMsg(e)};render();});
-};
-/* asignadora */
-A.pmarca=function(b){P.marca=b;render();};
-A.ptext=function(v){P.text=v;clearTimeout(A._p);A._p=setTimeout(render,350);};
-A.registrar=function(){
-  var marca=selMarca(),ases=enTurnoDe(marca);
-  var pl=plan(parseLeads(P.text),ases,S.data.leads);
-  if(!pl.length||!ases.length)return;
-  var batch=db.batch();
-  pl.forEach(function(x){var ref=db.collection('leads').doc();batch.set(ref,{marca:marca,nombre:x.b.nombre||'',telefono:x.b.telefono||'',tipo:x.b.tipo||'',equipo:x.b.equipo||'',uso:x.b.uso||'',obs:x.b.obs||'',asesor:x.a.nombre,asesorUid:x.a.id,fecha:hoy(),respondido:false,captura:'',asignadoPor:nombre(),creadoAt:ts(),creadoMs:Date.now()});});
-  batch.commit().then(function(){P.text='';S.msg={c:'o',t:pl.length+' lead'+(pl.length>1?'s':'')+' registrado'+(pl.length>1?'s':'')+' y asignado'+(pl.length>1?'s':'')+'.'};render();}).catch(function(e){S.msg={c:'e',t:errMsg(e)};render();});
-};
-A.reasignar=function(id,uid){if(!uid)return;var t=(S.data.turnos||[]).filter(function(x){return x.uid===uid;})[0];if(!t)return;db.doc('leads/'+id).update({asesorUid:t.uid,asesor:t.nombre}).catch(function(e){S.msg={c:'e',t:errMsg(e)};render();});};
 /* supervisora: personas */
 A.crear=function(){
   var nom=$('n-nom').value.trim(),mail=$('n-mail').value.trim(),pass=$('n-pass').value,rol=$('n-rol').value;
