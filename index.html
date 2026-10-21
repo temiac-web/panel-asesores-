@@ -221,19 +221,26 @@ function contactoBlock(c){
 }
 /* ====== alertas por días sin atención (los umbrales los define la supervisora en el CRG) ====== */
 function loadAcfg(){if(S.cache.acfgLoaded)return;S.cache.acfgLoaded=true;db.doc('store/crg_alertas_garantias').get().then(function(s){var v=s.exists&&s.data().value;if(v){S.cache.acfg=v;render();}}).catch(function(){});}
-function alertaCfg(){var c=S.cache.acfg||{},a=Number(c.aviso)>0?Number(c.aviso):2,k=Number(c.critico)>0?Number(c.critico):3;if(k<a)k=a;return {activo:c.activo!==false,aviso:a,critico:k};}
+function alertaCfg(){var c=S.cache.acfg||{},a=Number(c.aviso)>0?Number(c.aviso):2,k=Number(c.critico)>0?Number(c.critico):3;if(k<a)k=a;var cl=Number(c.cliente)>0?Number(c.cliente):3;return {activo:c.activo!==false,aviso:a,critico:k,cliente:cl};}
 function diaMs(s){var t=s?Date.parse(String(s).slice(0,10)+'T00:00:00'):NaN;return isNaN(t)?0:t;}
 function alertasCasos(casos,cfg){
   var out=[],now=Date.now(),D=864e5;if(cfg.activo===false)return out;
   (casos||[]).forEach(function(c){
     if(c.estado==='Resuelto'&&c.fechaEntregado)return;
     var tm=(c.actualizadoAt&&c.actualizadoAt.toMillis)?c.actualizadoAt.toMillis():0,creado=c.creadoMs||diaMs(c.fechaRecibido)||0;
-    var last=Math.max(creado,c.tomadoMs||0,c.contactoMs||0,c.listoMs||0,tm),m=[];
+    var asig=c.fechaAsignacion?Date.parse(c.fechaAsignacion):0;if(isNaN(asig))asig=0;
+    var last=Math.max(creado,asig,c.tomadoMs||0,c.contactoMs||0,c.listoMs||0,tm),m=[];
     function add(k,t,ref){if(!ref)return;var d=Math.floor((now-ref)/D);if(d>=cfg.aviso)m.push({k:k,t:t,d:d});}
     if(c.estado!=='Resuelto'){
+      if(c.esperaClienteMs>0){
+        /* El técnico ya escribió y el cliente quedó en responder: el reloj del técnico se pausa y solo se avisa la demora del cliente. */
+        var dc=Math.floor((now-c.esperaClienteMs)/D);
+        if(dc>=cfg.cliente)out.push({c:c,m:[{k:'cliente',t:'El cliente no ha respondido'+(c.esperaClienteNota?' ('+c.esperaClienteNota+')':''),d:dc}],d:dc,nivel:'cliente',tipo:'cliente'});
+        return;
+      }
       if(!c.tecnicoUid)add('sin_tecnico','Nadie ha tomado el caso',creado);
-      else if(!c.contactoCaptura)add('sin_contacto','Sin comprobante de contacto con el cliente',c.tomadoMs||creado);
-      add('sin_mov','Sin cambios en el caso',last);
+      else if(!c.contactoCaptura)add('sin_contacto','Pasó el plazo de '+cfg.aviso+' días sin comprobante de contacto con el cliente',c.tomadoMs||asig||creado);
+      add('sin_mov','Pasó el plazo de '+cfg.aviso+' días sin actualizar el caso',last);
     }else{
       var rs=diaMs(c.fechaResuelto)||last;
       if(!(c.listoCapturas&&c.listoCapturas.length))add('sin_aviso','Equipo listo sin comprobante de aviso al cliente',rs);
@@ -241,14 +248,15 @@ function alertasCasos(casos,cfg){
     }
     if(m.length){var mx=Math.max.apply(null,m.map(function(x){return x.d;}));out.push({c:c,m:m,d:mx,nivel:mx>=cfg.critico?'critico':'aviso'});}
   });
-  out.sort(function(a,b){return (a.nivel===b.nivel?0:(a.nivel==='critico'?-1:1))||b.d-a.d;});
+  var rk={critico:0,aviso:1,cliente:2};
+  out.sort(function(a,b){return (rk[a.nivel]-rk[b.nivel])||b.d-a.d;});
   return out;
 }
-function alPill(c){var x=alertasCasos([c],alertaCfg())[0];return x?'<span class="pill '+(x.nivel==='critico'?'p-r':'p-w')+'" title="'+esc(x.m.map(function(y){return y.t;}).join(' · '))+'">⏰ '+x.d+' d</span>':'';}
+function alPill(c){var x=alertasCasos([c],alertaCfg())[0];if(!x)return (c.esperaClienteMs>0&&c.estado!=='Resuelto')?'<span class="pill p-b" title="El reloj del técnico está en pausa">⏸️ Esperando al cliente</span>':'';if(x.tipo==='cliente')return '<span class="pill p-b" title="'+esc(x.m.map(function(y){return y.t;}).join(' · '))+'">⏸️ Cliente sin responder · '+x.d+' d</span>';return x?'<span class="pill '+(x.nivel==='critico'?'p-r':'p-w')+'" title="'+esc(x.m.map(function(y){return y.t;}).join(' · '))+'">⏰ '+x.d+' d</span>':'';}
 function alertasHTML(AL){
   var cfg=alertaCfg();
-  var rows=AL.slice(0,40).map(function(x){var c=x.c;return '<div class="item" style="border-left-color:'+(x.nivel==='critico'?'var(--bad)':'var(--amb)')+'"><div class="hd"><span class="pill '+(x.nivel==='critico'?'p-r':'p-w')+'">'+(x.nivel==='critico'?'Crítico':'Aviso')+' · '+x.d+' d</span>'+brandPill(c.marca)+'<b>'+esc(c.cliente)+'</b><span class="rt mu">'+esc(c.tecnico||'Sin técnico')+' · '+esc(c.folio||'')+'</span></div><div class="ln">'+x.m.map(function(y){return '• '+esc(y.t)+' ('+y.d+' d)';}).join('<br>')+'</div></div>';}).join('')||'<div class="mu">Todo al día: ningún caso supera '+cfg.aviso+' días sin atención.</div>';
-  return '<div class="cd"><div class="sec">Alertas de seguimiento</div><div class="mu">Aviso desde '+cfg.aviso+' días y crítico desde '+cfg.critico+' días (se ajusta en el panel CRG, con la campana 🔔).</div>'+rows+'</div>';
+  var rows=AL.slice(0,40).map(function(x){var c=x.c;return '<div class="item" style="border-left-color:'+(x.nivel==='critico'?'var(--bad)':x.nivel==='cliente'?'#5CA4FF':'var(--amb)')+'"><div class="hd"><span class="pill '+(x.nivel==='critico'?'p-r':x.nivel==='cliente'?'p-b':'p-w')+'">'+(x.nivel==='critico'?'Crítico':x.nivel==='cliente'?'Cliente sin responder':'Aviso')+' · '+x.d+' d</span>'+brandPill(c.marca)+'<b>'+esc(c.cliente)+'</b><span class="rt mu">'+esc(c.tecnico||'Sin técnico')+' · '+esc(c.folio||'')+'</span></div><div class="ln">'+x.m.map(function(y){return '• '+esc(y.t)+' ('+y.d+' d)';}).join('<br>')+'</div></div>';}).join('')||'<div class="mu">Todo al día: ningún caso supera '+cfg.aviso+' días sin atención.</div>';
+  return '<div class="cd"><div class="sec">Alertas de seguimiento</div><div class="mu">Aviso desde '+cfg.aviso+' días y crítico desde '+cfg.critico+' días (se ajusta en el panel CRG, con la campana 🔔). Si un cliente queda en responder, el caso pasa a "Esperando al cliente" y solo avisa a los '+cfg.cliente+' días.</div>'+rows+'</div>';
 }
 /* segundo comprobante: equipo listo / respuesta del cliente */
 function listoBlock(c){
@@ -563,7 +571,7 @@ function casoCard(c,act,tec){
   return '<div class="item"><div class="hd"><span class="id">'+esc(c.folio)+'</span><span class="pill '+(c.tipo==='Garantía'?'p-v':'p-b')+'">'+esc(c.tipo)+'</span>'+brandPill(c.marca)+'<span class="rt">'+alPill(c)+estPill(c.estado)+(c.fechaEntregado?'<span class="pill p-o">Entregado</span>':'')+'</span></div>'+
   '<div class="nm">'+esc(c.cliente)+'</div>'+(c.telefono?'<div class="ln">Teléfono: <i>'+esc(c.telefono)+'</i>'+(c.entregan?' · Entregan: <i>'+esc(c.entregan)+'</i>':'')+'</div>':'')+'<div class="ln">Equipo: <i>'+esc(c.equipo)+'</i> · Serial: <i>'+esc(c.serial||'—')+'</i></div><div class="ln">Falla: <i>'+esc(c.falla)+'</i> · Técnico: <i>'+esc(c.tecnico||'Sin asignar')+'</i></div>'+
   '<div class="ln">Recibido: <i>'+fdate(c.fechaRecibido)+'</i> · Resuelto: <i>'+fdate(c.fechaResuelto)+'</i> · Entregado: <i>'+fdate(c.fechaEntregado)+'</i></div>'+
-  (c.observaciones?'<div class="ln">Obs: <i>'+esc(c.observaciones)+'</i></div>':'')+
+  (c.observaciones?'<div class="ln">Obs: <i>'+esc(c.observaciones)+'</i></div>':'')+(c.esperaClienteMs>0&&c.estado!=='Resuelto'?'<div class="ln">⏸️ Esperando al cliente desde <i>'+fdt(c.esperaClienteMs)+'</i>'+(c.esperaClienteNota?': <i>'+esc(c.esperaClienteNota)+'</i>':'')+'</div>':'')+
   (tec?'':((c.listoCapturas&&c.listoCapturas.length)?'<div class="ln">Aviso de equipo listo: <i style="color:var(--ok)">✅ '+c.listoCapturas.length+' captura'+(c.listoCapturas.length>1?'s':'')+' · '+fdt(c.listoMs)+'</i></div>'+c.listoCapturas.map(function(x){return '<img class="shot" src="'+x.u+'" alt="Comprobante de aviso" style="cursor:zoom-in" onclick="this.style.maxHeight=this.style.maxHeight===\'none\'?\'260px\':\'none\'">';}).join(''):'')+(c.contactoCaptura?'<div class="ln">Contacto al cliente: <i style="color:var(--ok)">✅ '+fdt(c.contactoMs)+' · '+esc(c.contactoPor||c.tecnico||'')+'</i></div><img class="shot" src="'+c.contactoCaptura+'" alt="Comprobante de contacto" style="cursor:zoom-in" onclick="this.style.maxHeight=this.style.maxHeight===\'none\'?\'260px\':\'none\'">':(c.tecnicoUid?'<div class="ln">Contacto al cliente: <i style="color:var(--amb)">sin comprobante todavía</i></div>':'')))+(act||'')+'</div>';
 }
 
@@ -581,11 +589,12 @@ function vCasosTecnico(){
     var btns=!mio?(propio?'<button class="prim sm" onclick="A.tomar(\''+c.id+'\')">Tomar caso</button>':'<span class="mu">'+(libre?'Marca fuera de tu perfil: solo lectura':(c.tecnicoUid==='importado'?'Caso de la mesa anterior':'Lo lleva '+esc(c.tecnico||'otro técnico')))+'</span>'):
       ['Pendiente','En proceso','Resuelto'].map(function(e){return '<button class="cp'+(c.estado===e?' on':'')+'" onclick="A.estado(\''+c.id+'\',\''+e+'\')">'+e+'</button>';}).join('')+
       (c.estado==='Resuelto'&&!c.fechaEntregado?'<button class="prim sm amb" onclick="A.entregar(\''+c.id+'\')">Marcar entregado</button>':'')+
-      '<button class="bt sm" onclick="A.obs(\''+c.id+'\')">Observación</button>';
+      '<button class="bt sm" onclick="A.obs(\''+c.id+'\')">Observación</button>'+(c.estado!=='Resuelto'?'<button class="bt sm" onclick="A.espera(\''+c.id+'\')">'+(c.esperaClienteMs>0?'▶️ El cliente respondió':'⏸️ Esperando al cliente')+'</button>':'');
     return casoCard(c,(mio?contactoBlock(c)+(c.estado==='Resuelto'&&!c.fechaEntregado?listoBlock(c):''):'')+'<div class="bs">'+btns+'</div>',true);
   }).join('')||'<div class="mu">No hay casos en esta vista.</div>';
-  var mine=all.filter(function(c){return c.tecnicoUid===S.user.uid;}),ALm=alertasCasos(mine,alertaCfg()),crit=ALm.filter(function(x){return x.nivel==='critico';}).length;
+  var mine=all.filter(function(c){return c.tecnicoUid===S.user.uid;}),ALa=alertasCasos(mine,alertaCfg()),ALm=ALa.filter(function(x){return x.tipo!=='cliente';}),ALc=ALa.filter(function(x){return x.tipo==='cliente';}),crit=ALm.filter(function(x){return x.nivel==='critico';}).length;
   var banner=ALm.length?'<div class="al '+(crit?'e':'w')+'">🔔 Tienes '+ALm.length+' caso'+(ALm.length>1?'s':'')+' que necesita'+(ALm.length>1?'n':'')+' atención'+(crit?' ('+crit+' crítico'+(crit>1?'s':'')+')':'')+'. Fíjate en la etiqueta ⏰ de cada tarjeta.</div>':'';
+  banner+=ALc.length?'<div class="al w">⏸️ '+ALc.length+' caso'+(ALc.length>1?'s':'')+' esperando respuesta del cliente. No cuenta como demora tuya; puedes volver a escribirle.</div>':'';
   var chips2='<div class="fl">'+[['todos','Todos los casos'],['mios','Solo los míos']].map(function(x){return '<button class="cp'+(sc===x[0]?' on':'')+'" onclick="A.fsc(\''+x[0]+'\')">'+x[1]+'</button>';}).join('')+[['Todas','Todas las marcas']].concat(Object.keys(BRANDS).map(function(b){return [b,BRANDS[b].n];})).map(function(x){return '<button class="cp'+(fb===x[0]?' on':'')+'" onclick="A.fbc(\''+x[0]+'\')">'+x[1]+'</button>';}).join('')+'</div>';
   var chips=['Abiertos','Pendiente','En proceso','Por entregar','Todos'].map(function(x){return '<button class="cp'+(f===x?' on':'')+'" onclick="A.ftec(\''+x+'\')">'+x+'</button>';}).join('');
   return '<div><h1>Mesa de garantías</h1><div class="mu" style="padding-top:4px">Todos los casos, incluidos los de la mesa anterior. Toma uno libre de tus marcas para actualizarlo.</div></div><div class="stats">'+
@@ -881,9 +890,24 @@ A.contacto=function(id,inp){
 };
 A.ftec=function(f){S.ft=f;render();};
 A.tomar=function(id){db.doc('casos/'+id).update({tecnicoUid:S.user.uid,tecnico:nombre(),tomadoMs:Date.now(),actualizadoAt:ts()}).catch(function(e){S.msg={c:'e',t:errMsg(e)};render();});};
-A.estado=function(id,e){var u={estado:e,actualizadoAt:ts()};u.fechaResuelto=e==='Resuelto'?hoy():'';db.doc('casos/'+id).update(u).catch(function(x){S.msg={c:'e',t:errMsg(x)};render();});};
+A.estado=function(id,e){var u={estado:e,actualizadoAt:ts()};u.fechaResuelto=e==='Resuelto'?hoy():'';if(e==='Resuelto'){u.esperaClienteMs=0;u.esperaClienteNota='';}db.doc('casos/'+id).update(u).catch(function(x){S.msg={c:'e',t:errMsg(x)};render();});};
 A.entregar=function(id){db.doc('casos/'+id).update({fechaEntregado:hoy(),actualizadoAt:ts()}).catch(function(x){S.msg={c:'e',t:errMsg(x)};render();});};
 A.obs=function(id){var all=(S.data.casos_todos||[]);var c=all.filter(function(x){return x.id===id;})[0];var t=window.prompt('Observación del caso:',(c&&c.observaciones)||'');if(t===null)return;db.doc('casos/'+id).update({observaciones:t.trim(),actualizadoAt:ts()}).catch(function(x){S.msg={c:'e',t:errMsg(x)};render();});};
+/* El cliente quedó en responder: se pausa el reloj del técnico (no es demora suya) y se avisa si el cliente tarda. */
+A.espera=function(id){
+  var c=(S.data.casos_todos||[]).filter(function(x){return x.id===id;})[0]||{};
+  if(c.esperaClienteMs>0){
+    db.doc('casos/'+id).update({esperaClienteMs:0,esperaClienteNota:'',clienteRespondioMs:Date.now(),actualizadoAt:ts()})
+      .then(function(){toast('Listo: el caso vuelve a contar tu seguimiento.');})
+      .catch(function(x){S.msg={c:'e',t:errMsg(x)};render();});
+    return;
+  }
+  if(!c.contactoCaptura){toast('Primero sube el comprobante de que le escribiste al cliente.');return;}
+  var t=window.prompt('Esperando al cliente. ¿Qué quedó pendiente? (ej. "va a decidir si repara")','');if(t===null)return;
+  db.doc('casos/'+id).update({esperaClienteMs:Date.now(),esperaClienteNota:t.trim(),esperaClientePor:nombre(),actualizadoAt:ts()})
+    .then(function(){toast('Caso en espera del cliente. No cuenta como demora tuya.');})
+    .catch(function(x){S.msg={c:'e',t:errMsg(x)};render();});
+};
 /* supervisora: personas */
 A.crear=function(){
   var nom=$('n-nom').value.trim(),mail=$('n-mail').value.trim(),pass=$('n-pass').value,rol=$('n-rol').value;
