@@ -4,7 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Panel de Asesores</title>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
 <style>
 :root{--bg:#0B0A14;--s1:#13121E;--s2:#1A1830;--s3:#26224A;--line:#2A2650;--tx:#F2F1FA;--mu:#8C88A8;
 --vio:#8B6CF0;--vio2:#B7A4FF;--grad:linear-gradient(135deg,#7C5CF0,#4F7BF0);--amb:#F5B63A;--ok:#4ADE80;--bad:#F87171;--blue:#5CA4FF;
@@ -82,7 +83,6 @@ input:focus,select:focus,textarea:focus{outline:2px solid var(--vio);outline-off
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-auth-compat.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 (function(){
 "use strict";
@@ -93,13 +93,17 @@ var BRANDS={tekio:{n:'Tekio',pill:'p-t',color:'#FF7A3D'},infot:{n:'InfoT',pill:'
 var CANALES=['Tienda','WhatsApp','Instagram','Facebook','Referido','Leads','Otro'];
 var ROLES={asesor:'Asesor',tecnico:'Técnico'};
 var NAV={
-  asesor:[['venta','Registrar venta'],['ventas','Mis ventas'],['casos','Garantías']],
+  asesor:[['ventas','Mis ventas'],['casos','Garantías']],
   tecnico:[['tcasos','Casos']],
-  admin:[['resumen','Resumen'],['personas','Personas'],['importar','Importar'],['repetidas','Ventas repetidas']]
+  admin:[['resumen','Resumen'],['venta','Registrar venta'],['personas','Personas'],['importar','Importar'],['repetidas','Ventas repetidas']]
 };
 
+function fallo(t){var r=document.getElementById('root');if(r)r.innerHTML='<div class="login"><div class="lc"><h1>Panel de Asesores</h1><div class="al w">'+t+'</div><button class="prim" onclick="location.reload()">Recargar</button></div></div>';}
+if(!window.firebase){fallo('No se pudo cargar el panel (conexión lenta o bloqueada). Revisa tu internet y recarga.');return;}
 firebase.initializeApp(FB_CONFIG);
 var auth=firebase.auth(), db=firebase.firestore();
+try{db.settings({experimentalAutoDetectLongPolling:true,merge:true});}catch(e){}
+setTimeout(function(){if(!S.ready)fallo('Está tardando más de lo normal en conectar. Revisa tu internet y recarga.');},12000);
 
 /* ====== utilidades ====== */
 function $(id){return document.getElementById(id);}
@@ -123,9 +127,19 @@ function errMsg(e){var c=e&&e.code||'';
 
 /* ====== estado ====== */
 var S={user:null,perfil:null,role:null,view:null,data:{},unsubs:{},cache:{},msg:null,ready:false,authErr:''};
-function sub(name,query,cb){if(S.unsubs[name])S.unsubs[name]();S.unsubs[name]=query.onSnapshot(function(snap){S.data[name]=snap.docs.map(function(d){var o=d.data();o.id=d.id;return o;});cb&&cb();render();},function(e){S.data[name]=[];S.msg={c:'e',t:'No se pudo leer '+name+': '+errMsg(e)};render();});}
+var _rt=null;
+function softRender(){
+  clearTimeout(_rt);
+  _rt=setTimeout(function(){
+    var a=document.activeElement,r=$('root');
+    if(a&&r&&r.contains(a)&&/^(SELECT|INPUT|TEXTAREA)$/.test(a.tagName)&&a.type!=='file'&&a.id){S.pend=true;return;}
+    S.pend=false;render();
+  },150);
+}
+document.addEventListener('focusout',function(){if(S.pend){setTimeout(softRender,300);}});
+function sub(name,query,cb){if(S.unsubs[name])S.unsubs[name]();S.unsubs[name]=query.onSnapshot(function(snap){S.data[name]=snap.docs.map(function(d){var o=d.data();o.id=d.id;return o;});cb&&cb();softRender();},function(e){S.data[name]=[];S.msg={c:'e',t:'No se pudo leer '+name+': '+errMsg(e)};softRender();});}
 function unsubAll(){Object.keys(S.unsubs).forEach(function(k){S.unsubs[k]();});S.unsubs={};S.data={};}
-function marcas(){return (S.perfil&&S.perfil.marcas)||[];}
+function marcas(){return S.role==='admin'?Object.keys(BRANDS):((S.perfil&&S.perfil.marcas)||[]);}
 function nombre(){return S.role==='admin'?'Supervisora':(S.perfil&&S.perfil.nombre)||'';}
 
 /* sucursales activas de una marca, leídas del CRG (colección store, solo lectura) */
@@ -162,18 +176,14 @@ function go(view){
   Object.keys(S.unsubs).forEach(function(k){S.unsubs[k]();});S.unsubs={};S.data={};
   var uid=S.user.uid;
   if(S.role==='asesor'){
-    if(view==='venta'||view==='ventas'){
-      sub('ventas_mias',db.collection('ventas_asesor').where('asesorUid','==',uid));
-      var mq=misMarcas().slice(0,10);
-      if(mq.length)sub('ventas_marca',db.collection('ventas_asesor').where('marca','in',mq));
-      sub('directorio',db.collection('directorio'));
-    }
+    if(view==='ventas')sub('ventas_mias',db.collection('ventas_asesor').where('asesorUid','==',uid));
     if(view==='casos')sub('casos',db.collection('casos').where('asesorUid','==',uid));
   }
   if(S.role==='tecnico'&&view==='tcasos'){
     sub('casos_todos',db.collection('casos'));
   }
   if(S.role==='admin'){
+    if(view==='venta'){sub('ventas_marca',db.collection('ventas_asesor'));sub('directorio',db.collection('directorio'));}
     if(view==='resumen'){sub('ventas_asesor',db.collection('ventas_asesor'));sub('casos',db.collection('casos'));}
     if(view==='repetidas')sub('ventas_asesor',db.collection('ventas_asesor'));
     if(view==='personas')sub('usuarios',db.collection('usuarios'),syncDir);
@@ -220,7 +230,7 @@ function contactoBlock(c){
   return '<div class="al w">⚠️ Falta el comprobante: escríbele al cliente y sube la captura de la conversación.</div><div class="bs">'+(wa?'<a class="bt sm" style="display:inline-flex;align-items:center;text-decoration:none" href="'+wa+'" target="_blank" rel="noopener">Abrir WhatsApp</a>':'')+'<label class="prim sm" style="display:inline-flex;align-items:center;cursor:pointer">📸 Subir comprobante de contacto<input type="file" accept="image/*" class="hide" onchange="A.contacto(\''+c.id+'\',this)"></label></div>';
 }
 /* ====== alertas por días sin atención (los umbrales los define la supervisora en el CRG) ====== */
-function loadAcfg(){if(S.cache.acfgLoaded)return;S.cache.acfgLoaded=true;db.doc('store/crg_alertas_garantias').get().then(function(s){var v=s.exists&&s.data().value;if(v){S.cache.acfg=v;render();}}).catch(function(){});}
+function loadAcfg(){if(S.cache.acfgLoaded)return;S.cache.acfgLoaded=true;db.doc('store/crg_alertas_garantias').get().then(function(s){var v=s.exists&&s.data().value;if(v){S.cache.acfg=v;softRender();}}).catch(function(){});}
 function alertaCfg(){var c=S.cache.acfg||{},a=Number(c.aviso)>0?Number(c.aviso):2,k=Number(c.critico)>0?Number(c.critico):3;if(k<a)k=a;var cl=Number(c.cliente)>0?Number(c.cliente):3;return {activo:c.activo!==false,aviso:a,critico:k,cliente:cl};}
 function diaMs(s){var t=s?Date.parse(String(s).slice(0,10)+'T00:00:00'):NaN;return isNaN(t)?0:t;}
 function alertasCasos(casos,cfg){
@@ -356,7 +366,7 @@ function vVenta(){
   var dup=dupNota();
   var marcaOpts=mm.map(function(b){return '<option value="'+b+'"'+(F.brand===b?' selected':'')+'>'+esc(BRANDS[b].n)+'</option>';}).join('');
   var vendOpts='<option value="">Selecciona…</option>'+asesoresDir().map(function(d){return '<option value="'+esc(d.id)+'">'+esc(d.nombre)+'</option>';}).join('')+'<option value="__otro">Otra persona (escribir nombre)</option>';
-  return '<div><h1>Registrar venta</h1><div class="mu" style="padding-top:4px">Pega el reporte. Tú cargas todas las ventas de la marca donde estás hoy, las haya hecho quien las haya hecho.</div></div>'+
+  return '<div><h1>Registrar venta</h1><div class="mu" style="padding-top:4px">Pega el reporte, elige quién vendió y guarda: la venta aparece en «Mis ventas» de esa asesora.</div></div>'+
   '<div class="cd"><div class="sec">1 · Pega el reporte</div><div class="f full"><textarea id="v-txt" placeholder="Pega aquí el reporte completo de la venta"></textarea></div>'+
   '<div class="fl"><button class="prim" onclick="A.leer()">Leer reporte</button><button class="bt" onclick="A.cancelVenta()">Limpiar</button></div><div id="v-rd">'+rdHTML()+'</div></div>'+
   '<div class="cd"><div class="sec">2 · Revisa los datos</div><div class="g">'+
@@ -377,7 +387,7 @@ function dupNota(){var n=String(F.nota||'').trim();if(!n)return false;return ven
 function mesAnt(){var d=new Date();d.setDate(1);d.setMonth(d.getMonth()-1);return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2);}
 
 function vMisVentas(){
-  var uid=S.user.uid,mm=misMarcas(),fs=S.fs||'todo',fp=S.fp||'mes',fv=S.fv||'Todas';
+  var uid=S.user.uid,mm=misMarcas(),fs=S.fs||'mias',fp=S.fp||'mes',fv=S.fv||'Todas';
   var all=ventasAll().sort(function(a,b){return (b.fecha||'').localeCompare(a.fecha||'')||String(b.notaFina).localeCompare(String(a.notaFina));});
   function esMia(v){return v.asesorUid===uid;}
   function deMarca(v){return mm.indexOf(v.marca)>=0;}
@@ -399,8 +409,8 @@ function vMisVentas(){
   var c1=chips([['todo','Todo lo mío'],['tienda','Ventas de mi marca'],['mias','Solo mis ventas']],fs,'fs');
   var c2=chips([['mes','Este mes'],['ant','Mes anterior'],['todo','Todo']],fp,'fp');
   var c3=chips([['Todas','Todas las marcas']].concat(Object.keys(BRANDS).map(function(b){return [b,BRANDS[b].n];})),fv,'fv');
-  return '<div><h1>Mis ventas</h1><div class="mu" style="padding-top:4px">Las ventas de tu marca activa y las que vendiste tú en cualquier marca. Usa «Solo mis ventas» para sacar tu comisión.</div></div>'+
-  '<div class="stats">'+cards+'</div><div class="cd"><div class="fl">'+c1+'</div><div class="fl">'+c2+'</div><div class="fl">'+c3+'</div><div>'+rows+'</div></div>';
+  return '<div><h1>Mis ventas</h1><div class="mu" style="padding-top:4px">Las ventas que tu supervisora registró a tu nombre. Úsalas para revisar tu comisión; si ves algún error, avísale.</div></div>'+
+  '<div class="stats">'+cards+'</div><div class="cd"><div class="fl">'+c2+'</div><div class="fl">'+c3+'</div><div>'+rows+'</div></div>';
 }
 function gruposRep(){
   var g={};(S.data.ventas_asesor||[]).forEach(function(v){var k=[v.marca,String(v.notaFina).trim(),Number(v.total)||0].join('|');(g[k]=g[k]||[]).push(v);});
@@ -775,7 +785,7 @@ A.saveVenta=function(){
     F.saving=false;
     ['v-txt','v-nota','v-prod','v-precio','v-obs','v-vend-otro'].forEach(function(k){if($(k))$(k).value='';});if($('v-vend'))$('v-vend').value='';
     F.nota='';F.rd=null;
-    S.msg={c:'o',t:'Venta guardada y enviada a tu supervisora.'+(d&&d.id!==S.user.uid?' Ya aparece en las ventas de '+vname+'.':'')};render();
+    S.msg={c:'o',t:'Venta guardada.'+(d?' Ya aparece en las ventas de '+vname+'.':'')};render();
   }).catch(function(e){F.saving=false;S.msg={c:'e',t:errMsg(e)};render();});
 };
 A.fs=function(v){S.fs=v;render();};
@@ -787,13 +797,16 @@ A.fv=function(b){S.fv=b;render();};
 A.impTipo=function(t){I.tipo=t;I.rows=null;render();};
 A.impMarca=function(b){I.marca=b;render();};
 A.impLimpiar=function(){I.rows=null;I.name='';render();};
+function loadXLSX(ok,bad){if(window.XLSX){ok();return;}var sc=document.createElement('script');sc.src='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';sc.onload=ok;sc.onerror=bad;document.head.appendChild(sc);}
 A.impFile=function(inp){var f=inp.files&&inp.files[0];if(!f)return;
-  if(!window.XLSX){S.msg={c:'e',t:'No cargó el lector de Excel. Revisa la conexión y recarga la página.'};render();return;}
+  toast('Preparando lector de Excel…');
+  loadXLSX(function(){leerArchivo(f);},function(){S.msg={c:'e',t:'No cargó el lector de Excel. Revisa la conexión e inténtalo otra vez.'};render();});};
+function leerArchivo(f){
   var r=new FileReader();
   r.onload=function(){try{var wb=XLSX.read(r.result,{type:'array',cellDates:true}),ws=wb.Sheets[wb.SheetNames[0]];
     I.rows=XLSX.utils.sheet_to_json(ws,{defval:'',raw:true});I.name=f.name+' (hoja "'+wb.SheetNames[0]+'")';S.msg=null;}
     catch(e){I.rows=null;S.msg={c:'e',t:'No se pudo leer el archivo.'};}render();};
-  r.readAsArrayBuffer(f);};
+  r.readAsArrayBuffer(f);}
 A.impGo=function(){
   var r=impBuild();if(!r.ok.length)return;
   var col=I.tipo==='ventas'?'ventas_asesor':'casos',p=Promise.resolve();
